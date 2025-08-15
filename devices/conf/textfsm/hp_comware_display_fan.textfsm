@@ -1,0 +1,12 @@
+Value Filldown CHASSIS_NAME (Chassis|Slot)
+Value Filldown CHASSIS_ID (\d+)
+Value FAN_ID (\d+)
+Value Required FAN_STATE (\S+)
+
+Start
+  ^\s*${CHASSIS_NAME}\s*${CHASSIS_ID}\s*:
+  ^\s*Fan\s*${FAN_ID}\s*:
+  ^\s*Fan\s*Frame.*State:\s*${FAN_STATE} -> Continue.Record
+  ^\s*Fan\s*${FAN_ID}\s*State:\s*${FAN_STATE} -> Continue.Record
+  ^\s*State\s*:\s*${FAN_STATE} -> Continue.Record
+  

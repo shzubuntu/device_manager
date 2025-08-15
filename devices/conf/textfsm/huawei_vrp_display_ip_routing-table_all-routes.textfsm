@@ -1,0 +1,15 @@
+Value Filldown Vrf (\S+)
+Value Filldown Destination (\d+\.\d+\.\d+\.\d+)
+Value Filldown Mask (\d+)
+Value Proto (\S+)
+Value Pre (\d+)
+Value Cost (\d+)
+Value Flags (\S+)
+Value Required NextHop (\d+\.\d+\.\d+\.\d+)
+Value Required Interface (\S+)
+
+Start
+  ^Routing\s+Table\s+:\s+${Vrf}
+  ^\s+${Destination}/${Mask}\s+${Proto}\s+${Pre}\s+${Cost}\s+${Flags}\s+${NextHop}\s+${Interface}\s*$$ -> Record
+  ^${Destination}/${Mask}\s+${Proto}\s+${Pre}\s+${Cost}\s+${Flags}\s+${NextHop}\s+${Interface}\s*$$ -> Record Start
+  ^\s+${Proto}\s+${Pre}\s+${Cost}\s+${Flags}\s+${NextHop}\s+${Interface}\s*$$ -> Record

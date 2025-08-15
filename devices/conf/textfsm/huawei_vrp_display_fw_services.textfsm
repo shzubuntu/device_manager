@@ -1,0 +1,19 @@
+Value Filldown SYSNAME (\S+)
+Value Filldown VRF (\S+)
+Value Required SERVICE_NAME (\S+)
+Value List SERVICE_ID (\d+)
+Value List SERVICE_PRO (\S+)
+Value List SERVICE_SRC_START (\d+)
+Value List SERVICE_SRC_END (\d+)
+Value List SERVICE_DST_START (\d+)
+Value List SERVICE_DST_END (\d+)
+
+Start
+  ^sysname\s+${SYSNAME}
+  ^switch\s+vsys\s+${VRF}
+  ^ip service-set\s+${SERVICE_NAME} -> Continue
+  ^\s+service\s+${SERVICE_ID}\s+protocol\s+${SERVICE_PRO}\s+source-port\s+${SERVICE_SRC_START}\s+to\s+${SERVICE_SRC_END}\s+destination-port\s+${SERVICE_DST_START}$$ -> Continue
+  ^\s+service\s+${SERVICE_ID}\s+protocol\s+${SERVICE_PRO}\s+source-port\s+${SERVICE_SRC_START}\s+to\s+${SERVICE_SRC_END}\s+destination-port\s+${SERVICE_DST_START}\s+to\s+${SERVICE_DST_END}$$ -> Continue
+  ^# -> Record
+  ^return -> Start
+

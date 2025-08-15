@@ -1,0 +1,10 @@
+Value SLOT (\d+)
+Value SLOT_TYPE (\S+)
+Value STATE (\S+)
+Value SLOT_SUB (\d+)
+Value SOFT_VER (\S+)
+Value PATCH_VER (\S+)
+
+
+Start
+  ^\s*${SLOT}\s+${SLOT_TYPE}\s+${STATE}\s+${SLOT_SUB}\s+${SOFT_VER}\s+${PATCH_VER} -> Record

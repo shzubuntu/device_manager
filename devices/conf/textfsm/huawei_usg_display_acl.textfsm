@@ -1,0 +1,20 @@
+Value Filldown SYSNAME (\S+)
+Value Required ACL (\S*)
+Value List RULE_ID (\d+)
+Value List RULE_NAME (.+)
+Value List RULE_ACTION (permit|deny)
+Value List RULE_PRO (ip|icmp|tcp|udp)
+Value List RULE_SRC (\S+ \S+)
+Value List RULE_DST (\S+ \S+)
+Value List RULE_ID_S (\d+)
+Value List RULE_NAME_S (.+)
+Value List RULE_ACTION_S (permit|deny)
+Value List RULE_PRO_S (ip|icmp|tcp|udp)
+Value List RULE_SRC_S (\S+ \S+)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^acl name\s+${ACL}\s+advance
+  ^\s+rule\s+${RULE_ID}\s+name\s+${RULE_NAME}\s+${RULE_ACTION}\s+${RULE_PRO}\s+source\s+${RULE_SRC}\s+destination\s+${RULE_DST}
+  ^\s+rule\s+${RULE_ID_S}\s+name\s+${RULE_NAME_S}\s+${RULE_ACTION_S}\s+${RULE_PRO_S}\s+source\s+${RULE_SRC_S}
+  ^# -> Continue.Record

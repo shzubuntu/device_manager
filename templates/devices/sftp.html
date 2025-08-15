@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block content %}
+<input type="hidden" id="device_id" value="{{ device_id }}">
+<input type="hidden" id="local_home" value="{{ local_home }}">
+<input type="hidden" id="remote_home" value="{{ remote_home }}">
+<div class="container-fluid">
+
+    <!-- 远程文件面板 -->
+    <div class="col-md-12" id="remote-panel">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="card-title">SFTP文件传输</h5>
+          <div>
+            <span id="connection-status" class="badge bg-danger">未连接</span>
+            <div class="btn-group ms-2">
+              <button class="btn btn-sm btn-primary" onclick="refreshRemoteFiles()">
+                <i class="fas fa-sync"></i> 刷新
+              </button>
+              <button class="btn btn-sm btn-danger" id="download-btn" disabled onclick="downloadFile()">
+                <i class="fas fa-download"></i> 下载
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="remote-path" class="mb-2"></div>
+          <div id="remote-file-list" class="list-group">
+            <!-- 远程文件列表将通过JavaScript动态生成 -->
+          </div>
+        </div>
+        <!-- 新增一个容器用于放置上传和文件选择元素 -->
+        <div class="card-footer d-flex justify-content-end">
+          <div class="d-flex align-items-center">
+            <input type="file" id="local-file-input" accept="*/*" class="me-2" onchange="updateUploadButtonBasedOnFileSelection()">
+            <button id="local-upload-btn" class="btn btn-sm btn-success" disabled onclick="uploadLocalFile()">
+              <i class="fas fa-upload"></i> 上传文件
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 获取当前设备ID
+function getSelectedDeviceId() {
+  return document.getElementById('device_id').value
+}
+
+// 初始化变量
+let currentLocalPath = document.getElementById('local_home').value  // 默认显示用户home目录
+const Path = {
+  posix: {
+    join: (...parts) => parts.join('/')
+  }
+}
+let currentRemotePath = document.getElementById('remote_home').value  // 默认显示控制台工作目录
+let selectedLocalFiles = []
+let selectedRemoteFiles = []
+let currentWs = null;
+
+// 更新下载按钮状态
+function updateDownloadButtonState() {
+  const downloadBtn = document.getElementById('download-btn')
+  downloadBtn.disabled = selectedRemoteFiles.length === 0
+}
+
+// 加载远程文件
+function loadRemoteFiles(path) {
+  fetch(`/sftp/files/${getSelectedDeviceId()}/?path=${encodeURIComponent(path)}`)
+    .then(response => response.json())
+    .then(data => {
+      // 规范化路径
+      currentRemotePath = data.current_path
+        .replace(/\/+/g, '/')  // 去除多余斜杠
+        .replace(/\/\.\//g, '/')  // 去除当前目录引用
+        .replace(/\/[^\/]+\/\.\.(\/|$)/g, '/')  // 处理父目录引用
+        .replace(/\/$/, '') || '/'  // 去除末尾斜杠，空路径转为根目录
+      
+      // 确保路径以/开头
+      if (!currentRemotePath.startsWith('/')) {
+        currentRemotePath = '/' + currentRemotePath
+      }
+      document.getElementById('remote-path').innerText = currentRemotePath
+      
+      const fileList = document.getElementById('remote-file-list')
+      fileList.innerHTML = ''
+      
+      if (currentRemotePath !== '/') {
+        const parentItem = document.createElement('div')
+        parentItem.className = 'list-group-item list-group-item-action d-flex align-items-center'
+        
+        const parentIcon = document.createElement('i')
+        parentIcon.className = 'fas fa-level-up-alt me-2'
+        
+        const parentName = document.createElement('span')
+        parentName.innerText = '..'
+        
+        parentItem.appendChild(parentIcon)
+        parentItem.appendChild(parentName)
+        
+        parentItem.ondblclick = (e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          const parentPath = currentRemotePath.split('/').slice(0, -1).join('/') || '/'
+          loadRemoteFiles(parentPath)
+          return false
+        }
+        
+        fileList.appendChild(parentItem)
+      }
+      
+      data.files.forEach(file => {
+        const item = document.createElement('div')
+        item.className = 'list-group-item list-group-item-action d-flex align-items-center'
+        
+        const icon = document.createElement('i')
+        icon.className = file.is_dir ? 'fas fa-folder text-warning me-2' : 'fas fa-file text-primary me-2'
+        
+        const name = document.createElement('span')
+        name.innerText = file.name
+        
+        const size = document.createElement('span')
+        size.className = 'badge bg-secondary ms-auto'
+        size.innerText = file.is_dir ? '' : (file.size ? formatBytes(file.size) : '')
+        
+        item.appendChild(icon)
+        item.appendChild(name)
+        item.appendChild(size)
+        
+        item.onclick = (e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          // 取消所有元素的选中状态
+          const allItems = document.querySelectorAll('#remote-file-list > div')
+          allItems.forEach(i => i.classList.remove('active'))
+
+          // 选中当前点击的元素
+          item.classList.add('active')
+          if (file.is_dir) {
+            // 如果是目录，禁用下载按钮
+            selectedRemoteFiles = []
+            updateDownloadButtonState()
+          } else {
+            selectedRemoteFiles = [file.name]
+            updateDownloadButtonState()
+          }
+        }
+
+        if (file.is_dir) {
+          item.ondblclick = (e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            loadRemoteFiles(Path.posix.join(currentRemotePath, file.name))
+            return false
+          }
+        }
+        
+        fileList.appendChild(item)
+      })
+    })
+}
+//下载远程文件到本地
+async function downloadFile() {
+    const remotePath = document.getElementById('remote-path').innerText;
+    filename = selectedRemoteFiles[0]
+    console.log('下载文件',filename);
+    console.log('远程目录',remotePath);
+    const remoteFileUrl = remotePath +'/' + filename;
+    
+    // 拼接URL和查询字符串
+    params = {
+        remote_path:remotePath,
+        filename:filename,
+    }
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `/sftp/download/${getSelectedDeviceId()}/?${queryString}`;
+    try {
+        const response = await fetch(fullUrl, {
+          method: 'GET',
+          responseType: 'blob' // 指示fetch返回一个Blob对象
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to download file: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const urlObject = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = urlObject;
+        a.download = filename; // 设置下载文件的名称
+
+        document.body.appendChild(a);
+        a.click();
+
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(urlObject);
+
+        console.log('File downloaded successfully');
+      } catch (error) {
+        console.error('Error downloading file:', error);
+      }
+}
+
+// 根据文件选择情况更新上传按钮状态
+function updateUploadButtonBasedOnFileSelection() {
+  const fileInput = document.getElementById('local-file-input');
+  const uploadBtn = document.getElementById('local-upload-btn');
+  uploadBtn.disabled = fileInput.files.length === 0;
+}
+// 新增上传文件函数
+async function uploadLocalFile() {
+  const fileInput = document.getElementById('local-file-input');
+  const file = fileInput.files[0];
+  if (file) {
+    const deviceId = getSelectedDeviceId();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('device_id', deviceId);
+    formData.append('remote_path', currentRemotePath);
+
+    try {
+        const csrftoken = getCookie('csrftoken');
+        const response = await fetch(`/sftp/upload/${getSelectedDeviceId()}/`, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': csrftoken
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to upload file: ${response.statusText}`);
+        }
+        console.log('File uploaded successfully');
+        refreshRemoteFiles(); // 上传成功后刷新远程文件列表
+    } catch (error) {
+        console.error('Error uploading file:', error);
+    }
+  }
+}
+
+
+// 格式化文件大小
+function formatBytes(bytes, decimals = 2) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+// WebSocket连接
+function connectWebSocket() {
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/sftp/`);
+  currentWs = ws
+  
+  ws.onopen = () => {
+    document.getElementById('connection-status').className = 'badge bg-success';
+    document.getElementById('connection-status').innerText = '已连接';
+    // 启用所有操作按钮并恢复颜色
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+      btn.style.backgroundColor = '';
+      btn.style.color = '';
+    });
+  };
+
+  ws.onmessage= (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'output') {
+      console.log(data.message)
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('connection-status').className = 'badge bg-danger';
+    document.getElementById('connection-status').innerText = '未连接';
+    // 禁用所有操作按钮并设置为灰色
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      btn.style.backgroundColor = '#e9ecef';
+      btn.style.color = '#6c757d';
+    });
+  };
+}
+
+
+// 选择远程文件
+function selectRemoteFile(filename) {
+  selectedRemoteFiles = [filename];
+  const items = document.querySelectorAll('#remote-file-list .list-group-item');
+  items.forEach(item => item.classList.remove('active'));
+  const selectedItem = Array.from(items).find(item => 
+    item.querySelector('span').innerText === filename
+  );
+  if (selectedItem) {
+    selectedItem.classList.add('active');
+    document.getElementById('download-btn').disabled = false;
+  } else {
+    document.getElementById('download-btn').disabled = true;
+  }
+}
+
+// 刷新远程文件列表
+function refreshRemoteFiles() {
+  console.log('刷新目录',currentRemotePath)
+  loadRemoteFiles(currentRemotePath);
+}
+
+// 初始化文件管理器
+document.addEventListener('DOMContentLoaded', () => {
+  connectWebSocket();
+  loadRemoteFiles(currentRemotePath);
+});
+</script>
+
+<style>
+  .btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+
+  .list-group-item {
+    cursor: pointer;
+    padding: 0.75rem 1.25rem;
+  }
+  .list-group-item:hover {
+    background-color: #f8f9fa;
+  }
+  .card {
+    height: 80vh;
+  }
+  .card-body {
+    overflow-y: auto;
+  }
+  .badge {
+    font-size: 0.875em;
+  }
+  .fa-folder {
+    color: #ffc107; /* Bootstrap warning color */
+  }
+  .fa-file {
+    color: #0d6efd; /* Bootstrap primary color */
+  }
+</style>
+
+{% endblock %}

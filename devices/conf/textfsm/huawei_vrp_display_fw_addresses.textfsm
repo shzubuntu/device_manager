@@ -1,0 +1,19 @@
+Value Filldown SYSNAME (\S+)
+Value Filldown VRF (\S+)
+Value Required ADDRESS_NAME (\S+)
+Value List ADDRESS_ID (\d+)
+Value List ADDRESS_IPS (\d+\.\d+\.\d+\.\d+)
+Value List ADDRESS_IPS_MASKS (\S+)
+Value List ADDRESS_IPS_STARTS (\d+\.\d+\.\d+\.\d+)
+Value List ADDRESS_IPS_ENDS (\d+\.\d+\.\d+\.\d+)
+
+Start
+  ^sysname\s+${SYSNAME}
+  ^switch\s+vsys\s+${VRF}
+  ^ip address-set\s+${ADDRESS_NAME} -> Continue
+  ^\s+address\s+${ADDRESS_ID}\s+${ADDRESS_IPS}\s+mask\s+${ADDRESS_IPS_MASKS}$$ -> Continue
+  ^\s+address\s+${ADDRESS_ID}\s+${ADDRESS_IPS}\s+${ADDRESS_IPS_MASKS}$$ -> Continue
+  ^\s+address\s+${ADDRESS_ID}\s+range\s+${ADDRESS_IPS_STARTS}\s+${ADDRESS_IPS_ENDS}$$ -> Continue
+  ^# -> Record
+  ^return -> Start
+

@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>命令管理</h1>
+    <div class="mb-3">
+        <button class="btn btn-success" onclick="showCommandModal('add')">
+            <i class="fas fa-plus"></i> 新增命令
+        </button>
+        <button class="btn btn-danger" id="deleteSelected">
+            <i class="fas fa-trash"></i> 批量删除
+        </button>
+        <button class="btn btn-info" onclick="showImportModal()">
+            <i class="fas fa-file-import"></i> 批量导入
+        </button>
+        <button class="btn btn-warning" onclick="exportCommands()">
+            <i class="fas fa-file-export"></i> 批量导出
+        </button>
+        <button class="btn btn-success" onclick="checkStatus()">
+            <i class="fas fa-check"></i> 检查模板和csv
+        </button>
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="nameFilter" placeholder="命令名称" onkeyup="filterCommands()">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="commentFilter" placeholder="操作系统类型" onkeyup="filterCommands()">
+        </div>
+    </div>
+    <table class="table mt-3" id="command_table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>命令</th>
+                <th>操作系统类型</th>
+                <th>说明</th>
+                <th>操作</th>
+                <th>解析模板</th>
+                <th>解析结果</th>
+            </tr>
+        </thead>
+        <tbody id="command_list">
+            <!-- 命令数据将通过 JavaScript 动态填充 -->
+        </tbody>
+    </table>
+</div>
+
+<!-- 添加和编辑命令模态框 -->
+<div class="modal fade" id="CommandModal" tabindex="-1" role="dialog" aria-labelledby="addCommandModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="CommandModalLabel">命令信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="CommandForm">
+                    <div class="form-group">
+                        <label for="command_text">命令名称</label>
+                        <input type="text" class="form-control" id="command_text" title="请输入命令名称" placeholder="命令名称" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="comment">命令描述</label>
+                        <input type="text" class="form-control" id="comment" title="请输入命令描述" placeholder="命令描述">
+                    </div>
+                    <div class="form-group">
+                        <label for="os_type">操作系统类型</label>
+                        <select class="form-control" id="os_type" title="请选择操作系统类型" required>
+                            <!-- 操作系统类型选项将通过 JavaScript 动态填充 -->
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >取消</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="importCommandModal" tabindex="-1" role="dialog" aria-labelledby="importCommandModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importCommandModalLabel">批量导入命令</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importCommandForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="importFile">选择文件</label>
+                        <input type="file" class="form-control" id="importFile" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">导入</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="downloadTemplate()"> <i class="fas fa-file-download"></i> 下载模板
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模态框显示解析模板内容 -->
+<div class="modal fade" id="TemplateModal" tabindex="-1" role="dialog" aria-labelledby="templateModalLabel" aria-hidden="true">
+    <div class="modal-dialog template-modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templateModalLabel">解析模板内容</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body template-modal-body">
+                <pre id="templateContent"></pre> <!-- 显示模板内容 -->
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 增加模板模态框 -->
+<div class="modal fade" id="addTemplateModal" tabindex="-1" role="dialog" aria-labelledby="addTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTemplateModalLabel">模板信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="templateInfo" class="mb-2">
+                    <strong>操作系统类型:</strong> <span id="modalOsType"></span><br>
+                    <strong>命令文本:</strong> <span id="modalCommandText"></span>
+                </div>
+                <textarea id="newTemplateContent" class="form-control" rows="5" placeholder="输入新的模板内容..." required></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="saveTemplateButton">保存</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 自适应模态框宽度 */
+    .template-modal-dialog {
+        max-width: 80%;  /* 设置最大宽度为 80% */
+        width: auto;     /* 允许宽度自适应 */
+    }
+    .template-modal-body {
+        white-space: pre-wrap;  /* 保持文本格式 */
+        overflow-x: auto;       /* 允许横向滚动 */
+    }
+</style>
+
+<script>
+    // 清空表单函数
+    function clearForm() {
+        $('#CommandForm')[0].reset();
+    }
+
+    // 查询加载命令列表
+    function loadCommands() {
+        $.get('/api/commands/', function(data) {
+            $('#command_list').empty();  // 清空现有命令列表
+            data.forEach(function(command) {
+                $('#command_list').append(`
+                    <tr>
+                        <td><input type="checkbox" class="command_checkbox" value="${command.id}"></td>
+                        <td>${command.command_text}</td>
+                        <td>${command.os_type_name}</td>
+                        <td>${command.comment}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm editCommand" data-id="${command.id}">编辑</button>
+                            <button class="btn btn-danger btn-sm deleteCommand" data-id="${command.id}">删除</button>
+                        </td>
+                        <td class="template-status" data-id="${command.id}">${command.template_status}</td>
+                        <td class="csv-status" data-id="${command.id}">${command.csv_status}</td>
+                    </tr>
+                `);
+            });
+            checkStatus() 
+        });
+        // 加载模板和csv状态
+        //setInterval(checkTemplateStatus, 25000); 
+    }
+    // 加载模板和csv状态
+    function checkStatus() {
+        $('#command_list tr').each(function() {
+            const template_status = $(this).find('.template-status').text();
+            const csv_status = $(this).find('.csv-status').text();
+            const commandId = $(this).find('.template-status').data('id');
+            const templateButton = template_status == 'exists' ? 
+                `<button class="btn btn-info btn-sm viewTemplate" data-id="${commandId}">查看</button>
+                <button class="btn btn-warning btn-sm editTemplate" data-id="${commandId}">编辑</button>
+                ` : 
+                    `<button class="btn btn-success btn-sm addTemplate" data-id="${commandId}">新增</button>`;
+            const csvButton = csv_status == 'exists' ? 
+                    `<button class="btn btn-info btn-sm viewTemplateResult" data-id="${commandId}">查看</button>
+                    <button class="btn btn-warning btn-sm deleteTemplateResult" data-id="${commandId}">删除</button>
+                    ` : 
+                    ``;
+
+            $(this).find('.template-status').html(templateButton);
+            $(this).find('.csv-status').html(csvButton);
+        });
+    }
+    //加载os_type
+    function loadOsTypes() {
+        console.log('加载os_type');
+        $.get('/os_types/', function(data) {
+            $('#os_type').empty();
+            $('#os_type').append('<option value="">请选择操作系统类型</option>');
+            data.forEach(function(os_type) {
+                $('#os_type').append('<option value="' + os_type.id + '">' + os_type.name + '</option>');
+            });
+        });
+    }
+    
+    // 增加命令功能相关函数
+    // 显示添加命令模态框
+    function showCommandModal(mode ) {
+        if (mode === 'add') {
+            clearForm();
+            //loadOsTypes();
+            $('#CommandModalLabel').text('新增命令');
+            $('#CommandModal').modal('show');  // 显示添加命令模态框
+        } else if (mode === 'edit') {
+            $('#CommandModalLabel').text('编辑命令');
+            $('#CommandModal').modal('show');  // 显示编辑命令模态框
+        }
+    }
+    // 添加命令
+    $('#CommandForm').on('submit', function(e) {
+        e.preventDefault();
+        const newCommand = {
+            command_text: $('#command_text').val(),
+            os_type: $('#os_type').val(),
+            os_type_name: $('#os_type').find('option:selected').text(),
+            comment: $('#comment').val(),
+        };
+        const csrftoken = getCookie('csrftoken');
+        console.log('newCommand',newCommand);
+        $.ajax({
+            url: `/api/commands/`,
+            type: 'POST',
+            data: newCommand,
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function() {
+                $('#CommandModal').modal('hide');  // 隐藏添加命令模态框
+                loadCommands();
+            }
+        });
+        
+    });
+    // 删除单个命令
+    $(document).on('click', '.deleteCommand', function() {
+        const commandId = $(this).data('id');
+        const csrftoken = getCookie('csrftoken');
+        $.ajax({
+            url: `/api/commands/${commandId}/`,
+            type: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function() {
+                loadCommands();
+            }
+        });
+    });
+    // 批量删除
+    $('#deleteSelected').on('click', function() {
+        const selectedIds = $('.command_checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        const csrftoken = getCookie('csrftoken');
+        console.log('selectedIds',selectedIds);
+        if (selectedIds.length > 0) {
+            $.ajax({
+                url: '/api/commands/',
+                type: 'DELETE',
+                data: JSON.stringify({ ids: selectedIds }),
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                contentType: 'application/json',
+                success: function() {
+                    loadCommands();
+                }
+            });
+        } else {
+            alert('请先选择要删除的命令');
+        }
+    });
+    
+    // 修改编辑OS类型
+    $(document).on('click', '.editCommand', function() {
+        const commandId = $(this).data('id');
+        $.get(`/api/commands/${commandId}/`, function(data) {
+            // 填充模态框中的数据
+            showCommandModal('edit');
+            $('#command_text').val(data.command_text);
+            $('#comment').val(data.comment);
+            
+            $('#os_type').val(data.os_type);
+            
+           // $('#BookModal').modal('show'); // 显示模态框
+
+            // 更新命令
+            $('#CommandForm').off('submit').on('submit', function(e) {
+                e.preventDefault();
+                const updatedCommand = {
+                    command_text: $('#command_text').val(),
+                    comment: $('#comment').val(),
+                    os_type: $('#os_type').val(),
+                    os_type_name: $('#os_type').find('option:selected').text(),
+                };
+                const csrftoken = getCookie('csrftoken');
+                $.ajax({
+                    url: `/api/commands/${commandId}/`,
+                    type: 'PUT',
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    },
+                    contentType: 'application/json',
+                    data: JSON.stringify(updatedCommand),
+                    success: function() {
+                        $('#CommandModal').modal('hide');
+                        loadCommands();
+                    }
+                });
+            });
+        });
+    });
+     // 批量导入
+     function showImportModal() {
+        $('#importCommandModal').modal('show');
+    }
+    $(document).on('submit', '#importCommandForm', function(e) {
+        e.preventDefault();  // 防止默认提交
+
+        const fileInput = $('#importFile')[0];
+        if (fileInput.files.length === 0) {
+            alert('请选择要导入的文件');
+            return;
+        }
+
+        const formData = new FormData();  // 获取表单数据
+        formData.append('file', fileInput.files[0]);  // 添加文件到 FormData
+        const csrftoken = getCookie('csrftoken');
+
+
+        $.ajax({
+            url: '/api/commands/import/',  // 假设您将创建这个 API
+            type: 'POST',
+            data: formData,
+            processData: false,  // 不处理数据
+            contentType: false,  // 不设置内容类型
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                alert('命令导入成功！');
+                loadCommands();  // 刷新命令列表
+                $('#importCommandModal').modal('hide');  // 关闭模态框
+            },
+            error: function(error) {
+                const errorMessage = error.responseJSON ? error.responseJSON.error : '未知错误';
+                alert('导入命令失败：' + errorMessage);
+            }
+        });
+    });
+    // 导出命令
+    function exportCommands() {
+        const selectedIds = [];
+        $('input[type="checkbox"]:checked').each(function() {
+            if (this.value) {
+                selectedIds.push(this.value);
+            }
+        });
+
+        if (selectedIds.length === 0) {
+            alert('请选择要导出的命令');
+            return;
+        }
+
+        const json_string = JSON.stringify(selectedIds);
+        const csrftoken = getCookie('csrftoken');
+        console.log('导出命令json_string',json_string);
+
+        $.ajax({
+            url: '/api/commands/export/',  // 假设您将创建这个 API
+            type: 'POST',
+            data: { ids: json_string },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                // 直接下载文件
+                const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'commands.csv';
+                link.click();
+            },
+            error: function(error) {
+                alert('导出命令失败：' + error.responseJSON.message);
+            }
+        });
+    }
+    // 关键字过滤命令
+    function filterCommands() {
+        const nameFilter = $('#nameFilter').val().toLowerCase();
+        const commentFilter = $('#commentFilter').val().toLowerCase();
+
+        console.log("Filtering commands with:", nameFilter, commentFilter);  // 调试输出
+
+        $('#command_table tbody tr').filter(function() {
+            const nameMatch = $(this).find('td:nth-child(2)').text().toLowerCase().indexOf(nameFilter) > -1;
+            const commentMatch = $(this).find('td:nth-child(3)').text().toLowerCase().indexOf(commentFilter) > -1;
+
+            // 只显示匹配的行
+            $(this).toggle(nameMatch && commentMatch);
+        });
+    }
+
+   
+    // 选择所有命令
+    //$('#selectAll').on('change', function() {
+    //    $('.command_checkbox').prop('checked', this.checked);
+    //});
+    // 页面加载时执行
+    $(document).ready(function() {
+        //加载命令列表
+        loadCommands();
+        //加载os_type
+        loadOsTypes();
+
+         $('#selectAll').click(function() {
+            //$('input[type="checkbox"]').prop('checked', this.checked);
+            const isChecked = this.checked;  // 获取全选复选框的状态
+            // 只选择当前可见的设备行
+            $('#command_table tr:visible input[type="checkbox"]').prop('checked', isChecked);
+        });
+
+        // 监听单个复选框的变化事件
+        $('#command_list').on('change', 'input[type="checkbox"]', function() {
+            const allCheckboxes = $('#command_list input[type="checkbox"]');
+            const checkedCheckboxes = allCheckboxes.filter(':checked');
+            // 如果所有单个复选框都被选中，则全选复选框也选中；否则取消选中
+            $('#selectAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+        });
+    });
+
+    // 查看模板
+    $(document).on('click', '.viewTemplate', function() {
+        const commandId = $(this).data('id');
+        const osType = $(this).closest('tr').find('td:nth-child(3)').text(); // 获取操作系统类型
+        const commandText = $(this).closest('tr').find('td:nth-child(2)').text().replaceAll(' ', '_'); // 获取命令文本
+        console.log("查看模板:", osType, commandText);
+        $.get(`/textfsm/${osType}/${commandText}/`, function(data) {
+            if (data && data.template_text) {
+                $('#templateContent').text(data.template_text); // 假设返回的内容在 template_text 字段
+                $('#TemplateModal').modal('show'); 
+            } else {
+                console.error("模板内容未找到或格式不正确:", data);
+            }
+        }).fail(function(jqXHR) {
+            console.error('查看模板时发生错误:', jqXHR);
+            if (jqXHR.status === 404) {
+                alert('模板文件未找到');
+            } else {
+                alert('发生错误，无法加载模板');
+            }
+        });
+    });
+    // 显示增加模板模态框
+     // 查看模板
+     $(document).on('click', '.addTemplate', function() {
+        const osType = $(this).closest('tr').find('td:nth-child(3)').text(); // 获取操作系统类型
+        const commandText = $(this).closest('tr').find('td:nth-child(2)').text(); // 获取命令文本
+
+        // 设置模态框中的内容
+        $('#modalOsType').text(osType);
+        $('#modalCommandText').text(commandText);
+
+        $('#addTemplateModal').modal('show');
+    });
+    // 编辑模板
+    $(document).on('click', '.editTemplate', function() {
+        const osType = $(this).closest('tr').find('td:nth-child(3)').text(); // 获取操作系统类型
+        const commandText = $(this).closest('tr').find('td:nth-child(2)').text(); // 获取命令文本
+        // 设置模态框中的内容
+        $('#modalOsType').text(osType);
+        $('#modalCommandText').text(commandText);
+        command_text = commandText.replaceAll(' ', '_');
+
+        // 获取模板内容 
+        $.get(`/textfsm/${osType}/${command_text}/`, function(data) {
+            if (data && data.template_text) {
+                $('#newTemplateContent').text(data.template_text); // 假设返回的内容在 template_text 字段
+                $('#addTemplateModal').modal('show');
+            } else {
+                console.error("模板内容未找到或格式不正确:", data);
+            }
+        }).fail(function(jqXHR) {
+            console.error('查看模板时发生错误:', jqXHR);
+            if (jqXHR.status === 404) {
+                alert('模板文件未找到');
+            } else {
+                alert('发生错误，无法加载模板');
+            }
+        });
+    });
+    // 保存模板
+    $(document).on('click', '#saveTemplateButton', function() {
+        const osType = $('#modalOsType').text(); // 获取操作系统类型
+        const commandText = $('#modalCommandText').text().replaceAll(' ', '_'); // 获取命令文本并替换空格
+        const templateContent = $('#newTemplateContent').val(); // 获取输入的模板内容
+
+        if (!osType || !commandText || !templateContent) {
+            alert('请确保所有字段都已填写');
+            return;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        $.ajax({
+            url: `/textfsm/${osType}/${commandText}/`, // 假设您将创建这个 API
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            contentType: 'application/json',
+            data: JSON.stringify({ template_text: templateContent }),
+            success: function(response) {
+                alert('模板已成功保存！');
+                $('#addTemplateModal').modal('hide'); // 关闭模态框
+                // 这里可以调用 loadCommands() 或 checkTemplateStatus() 来刷新模板状态
+                //loadCommands();
+            },
+            error: function(error) {
+                alert('保存模板失败：' + error.responseJSON.message);
+            }
+        });
+    });
+    // 查看模板解析结果
+    $(document).on('click', '.viewTemplateResult', function() {
+        const commandId = $(this).data('id');
+        window.location.href = `/view_textfsm_result/${commandId}/`;
+        
+    });
+    // 下载模板
+    function downloadTemplate() {
+        window.location.href = '/static/csv/commands_template.csv';  // 假设模板文件的路径
+    }
+    // 删除模板解析结果
+    $(document).on('click', '.deleteTemplateResult', function() {
+        const commandId = $(this).data('id');
+        const osType = $(this).closest('tr').find('td:nth-child(3)').text(); // 获取操作系统类型
+        const commandText = $(this).closest('tr').find('td:nth-child(2)').text().replaceAll(' ', '_'); // 获取命令文本
+
+        // 发送删除请求
+        const csrftoken = getCookie('csrftoken');
+        $.ajax({
+            url: `/textfsmcsv/${osType}/${commandText}/`, // 假设您将创建这个 API
+            type: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                alert('解析结果已成功删除！');
+                // 这里可以刷新解析结果状态
+                loadCommands();
+            },
+            error: function(error) {
+                alert('删除解析结果失败：' + error.responseJSON.message);
+            }
+        });
+    });
+    </script>
+{% endblock %} 
+
+

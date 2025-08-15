@@ -1,0 +1,44 @@
+Value Required VSI_NAME (\S+)
+Value VSI_INDEX (\d+)
+Value VSI_STATE (Up|Down)
+Value MTU (\d+)
+Value MAC_LEARNING (Enabled|Disabled)
+Value FLOODING (Enabled|Disabled)
+Value STATISTICS (Enabled|Disabled)
+Value GATEWAY_INTERFACE (\S+ \S+)
+Value VXLAN_ID (\d+)
+Value List TUNNEL_NAME (\S+)
+Value List TUNNEL_LINK_ID (0x\w+)
+Value List TUNNEL_STATE (UP|DOWN)
+Value List TUNNEL_TYPE (Auto|Manual)
+Value List TUNNEL_FLOOD_PROXY (Enabled|Disabled)
+Value List AC_NAME (\S+ \S+)
+Value List AC_LINK_ID (\d+)
+Value List AC_STATE (Up|Down)
+Value List AC_TYPE (\S+ \(?\S*\)?)
+
+Start
+  ^VSI Name: ${VSI_NAME} -> VSI_Details
+
+VSI_Details
+  ^\s+VSI Index\s+:\s+${VSI_INDEX}
+  ^\s+VSI State\s+:\s+${VSI_STATE}
+  ^\s+MTU\s+:\s+${MTU}
+  ^\s+MAC Learning\s+:\s+${MAC_LEARNING}
+  ^\s+Flooding\s+:\s+${FLOODING}
+  ^\s+Statistics\s+:\s+${STATISTICS}
+  ^\s+Gateway Interface\s+:\s+${GATEWAY_INTERFACE}
+  ^\s+VXLAN ID\s+:\s+${VXLAN_ID}
+  ^\s+Tunnels: -> Tunnels
+  ^\s+ACs: -> ACs
+  ^\s*$$ -> Record Start
+
+Tunnels
+  ^\s+Tunnel Name\s+Link ID\s+State\s+Type\s+Flood proxy
+  ^\s+${TUNNEL_NAME}\s+${TUNNEL_LINK_ID}\s+${TUNNEL_STATE}\s+${TUNNEL_TYPE}\s+${TUNNEL_FLOOD_PROXY}
+  ^\s+ACs: -> ACs
+
+ACs
+  ^\s+AC\s+Link ID\s+State\s+Type
+  ^\s+${AC_NAME}\s+${AC_LINK_ID}\s+${AC_STATE}\s+${AC_TYPE}
+  ^\s*$$ -> Record Start

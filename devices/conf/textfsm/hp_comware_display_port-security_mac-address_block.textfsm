@@ -1,0 +1,7 @@
+Value INTERFACE (\S+)
+Value VLAN (\d+)
+Value MAC_ADDRESS ([0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4})
+
+Start
+  ^\s*${MAC_ADDRESS}\s*${INTERFACE}\s*${VLAN} -> Record
+  ^\s*$$ -> Start

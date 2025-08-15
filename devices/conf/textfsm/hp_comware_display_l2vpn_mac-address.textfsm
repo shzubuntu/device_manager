@@ -1,0 +1,9 @@
+#Value MACADDRESS (^[\d\w-]+)
+Value MACADDRESS ([\d\w]{4}-[\d\w]{4}-[\d\w]{4})
+Value STATE (\S+)
+Value VSI_NAME (\S+)
+Value INTERFACE (\S+)
+Value AGING (\S+)
+
+Start
+  ^${MACADDRESS}\s+${STATE}\s+${VSI_NAME}\s+${INTERFACE}\s+${AGING} -> Record

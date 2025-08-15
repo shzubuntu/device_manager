@@ -1,0 +1,23 @@
+Value Filldown Acl_id (\S+)
+Value Filldown Acl_type (Advanced|Basic)
+Value Filldown Acl_rule_count (\d+)
+Value Vrf (\S+)
+Value Required Rule_id (\d+)
+Value Rule_name (\S+)
+Value Rule_action (permit|deny)
+Value Rule_proto (icmp|ip|tcp|udp)
+Value Rule_src_ip (\d+\.\d+\.\d+\.\d+)
+Value Rule_src_mask (\d+\.\d+\.\d+\.\d+)
+Value Rule_dst_ip (\d+\.\d+\.\d+\.\d+)
+Value Rule_dst_mask (\d+\.\d+\.\d+\.\d+)
+Value Rule_tcp_flag (syn|fin|rst)
+
+Start
+  ^${Acl_type}\s*\S*\s*ACL\s+${Acl_id},\s+${Acl_rule_count}\s+rules$$
+  ^\s+rule\s+${Rule_id}\s+name\s+${Rule_name}\s+${Rule_action}\s+${Rule_proto}\s*\S*\s+\(\d+\s+times matched\)$$ -> Record
+  ^\s+rule\s+${Rule_id}\s+name\s+${Rule_name}\s+${Rule_action}\s+${Rule_proto}\s+source\s+${Rule_src_ip}\s+${Rule_src_mask}\s+destination\s+${Rule_dst_ip}\s+${Rule_dst_mask}\s*\S*\s*\(\d+\s+times matched\)$$ -> Record
+  ^\s+rule\s+${Rule_id}\s+${Rule_action}\s+${Rule_proto}\s+tcp-flag\s+${Rule_tcp_flag}\s* -> Record
+  ^\s+rule\s+${Rule_id}\s+${Rule_action}\s+vpn-instance\s+${Vrf}\s+source\s+${Rule_src_ip}\s+${Rule_src_mask}\s+\(\d+\s+times matched\)$$ -> Record
+  ^\s+rule\s+${Rule_id}\s+${Rule_action}\s+vpn-instance\s+${Vrf}\s+destination\s+${Rule_dst_ip}\s+${Rule_dst_mask}\s+\(\d+\s+times matched\)$$ -> Record
+  ^\s+rule\s+${Rule_id}\s+${Rule_action}\s+\(\d+\s+times matched\)$$ -> Record
+  ^$$ -> Start

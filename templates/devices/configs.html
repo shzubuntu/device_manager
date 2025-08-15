@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+<style>
+    .output-text {
+        color: var(--text-light);
+        background: transparent;
+        border: 1px solid var(--border-dark);
+        padding: 1.25rem;
+        font-family: 'Fira Code', monospace; /* 等宽字体优化 */
+        line-height: 1.6;
+        overflow-x: auto; /* 横向滚动支持 */
+    }
+    .content-wrapper {
+        --bg-dark: #494848; /* 专业代码编辑器底色 */
+        --text-light: #dcdcdc;
+        --border-dark: #3c3c3c;
+        
+        background: var(--bg-dark);
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+</style>
+{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h1>命令集管理</h1>
+    <div class="mb-3">
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCommandsModal">
+            <i class="fas fa-plus"></i> 新增命令集
+        </button>
+        <!--
+        <button class="btn btn-danger" id="deleteSelected" disabled>
+            <i class="fas fa-trash"></i> 批量删除
+        </button>
+        -->
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="nameFilter" placeholder="命令名称" onkeyup="filterCommands()">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="commentFilter" placeholder="命令描述" onkeyup="filterCommands()">
+        </div>
+    </div>
+    <table class="table mt-3" id="commands_table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>命令集名称</th>
+                <th>操作系统类型</th>
+                <th>命令集</th>
+                <th>操作</th>
+
+            </tr>
+        </thead>
+        <tbody id="commands_list">
+            <!-- 命令数据将通过 JavaScript 动态填充 -->
+        </tbody>
+    </table>
+</div>
+
+<!-- 增加命令集模态框 -->
+<div class="modal fade" id="addCommandsModal" tabindex="-1" role="dialog" aria-labelledby="addCommandsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCommandModalLabel">命令集信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCommandForm">
+                    <div class="form-group">
+                        <label for="add_commands_name">命令集名称</label>
+                        <input type="text" class="form-control" id="add_commands_name" placeholder="命令名称" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add_os_type">操作系统类型</label>
+                        <select class="form-control" id="add_os_type" title="请选择操作系统类型" required>
+                            <!-- 操作系统类型选项将通过 JavaScript 动态填充 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="add_commands_text">命令集内容</label>
+                        <textarea class="form-control" id="add_commands_text" rows="8" placeholder="输入命令内容..." required></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary" >保存</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑命令模态框 -->
+<div class="modal fade" id="editCommandModal" tabindex="-1" role="dialog" aria-labelledby="editCommandModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCommandModalLabel">命令集信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="CommandForm">
+                    <div class="form-group">
+                        <label for="commands_name">命令集名称</label>
+                        <input type="text" class="form-control" id="commands_name" placeholder="命令名称" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="os_type">操作系统类型</label>
+                        <input type="text" class="form-control" id="os_type"  placeholder="命令名称" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="commands_text">命令集内容</label>
+                        <textarea class="form-control" id="commands_text" rows="8" placeholder="输入命令内容..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >取消</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+    // 查询加载命令列表
+    function loadCommands() {
+        $.get('/configs/', function(data) {
+            $('#commands_list').empty();  // 清空现有命令列表
+            data.forEach(function(configs) {
+                const config_text = configs.commands_text.split('\n').join('<br>')
+                
+                $('#commands_list').append(`
+                    <tr>
+                        <td><input type="checkbox" class="command_checkbox" value="${configs.id}"></td>
+                        <td>${configs.commands_name}</td>
+                        <td>${configs.os_type}</td>
+                        <td>
+                            <div class="content-wrapper" style="overflow:hidden; transition: max-height 0.3s">
+                            <pre class="output-text mt-2">${config_text}</pre>
+                            </div>
+                        </td>
+                            
+                        <td>
+                            <button class="btn btn-warning btn-sm editcommands" data-id="${configs.id}">编辑</button>
+                            <button class="btn btn-info btn-sm deletecommands" data-id="${configs.id}">删除</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        });
+    }
+    // 添加命令
+    $('#addCommandForm').on('submit', function(e) {
+        e.preventDefault();
+        const newCommand = {
+            os_type: $('#add_os_type').find('option:selected').text(),
+            commands_text: $('#add_commands_text').val(),
+            commands_name: $('#add_commands_name').val(),
+        };
+        const csrftoken = getCookie('csrftoken');
+        console.log('newCommand',newCommand);
+        $.ajax({
+            url: `/configs/`,
+            type: 'POST',
+            data: newCommand,
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function() {
+                $('#addCommandsModal').modal('hide');  // 隐藏添加命令模态框
+                loadCommands();
+            }
+        });
+        
+    });
+    // 删除单个命令
+    $(document).on('click', '.deletecommands', function() {
+        const configs_id = $(this).data('id');
+        const csrftoken = getCookie('csrftoken');
+        $.ajax({
+            url: `/configs/${configs_id}/`,
+            type: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function() {
+                loadCommands();
+            }
+        });
+    });
+    // 修改编辑命令集
+    $(document).on('click', '.editcommands', function() {
+        const configs_id = $(this).data('id');
+        $.get(`/configs/${configs_id}/`, function(data) {
+            console.log(data);
+            // 填充模态框中的数据
+            $('#commands_name').val(data.commands_name);
+            $('#commands_text').val(data.commands_text);
+            $('#os_type').val(data.os_type);
+           $('#editCommandModal').modal('show'); // 显示模态框
+
+            // 更新命令
+            $('#CommandForm').off('submit').on('submit', function(e) {
+                e.preventDefault();
+                const updatedCommand = {
+                    commands_text: $('#commands_text').val(),
+                    commands_name: $('#commands_name').val(),
+                    os_type: $('#os_type').val(),
+                };
+                const csrftoken = getCookie('csrftoken');
+                $.ajax({
+                    url: `/configs/`,
+                    type: 'PUT',
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    },
+                    contentType: 'application/json',
+                    data: JSON.stringify(updatedCommand),
+                    success: function() {
+                        $('#editCommandModal').modal('hide');
+                        loadCommands();
+                    }
+                });
+            });
+        });
+    });
+    $('#selectAll').click(function() {
+        //$('input[type="checkbox"]').prop('checked', this.checked);
+        const isChecked = this.checked;  // 获取全选复选框的状态
+        // 只选择当前可见的设备行
+        $('#commands_table tr:visible input[type="checkbox"]').prop('checked', isChecked);
+    });
+
+    // 监听单个复选框的变化事件
+    $('#commands_list').on('change', 'input[type="checkbox"]', function() {
+        const allCheckboxes = $('#commands_list input[type="checkbox"]');
+        const checkedCheckboxes = allCheckboxes.filter(':checked');
+        // 如果所有单个复选框都被选中，则全选复选框也选中；否则取消选中
+        $('#selectAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+    });
+    //加载os_type
+    function loadOsTypes() {
+        console.log('加载os_type');
+        $.get('/os_types/', function(data) {
+            $('#add_os_type').empty();
+            $('#v').append('<option value="">请选择操作系统类型</option>');
+            data.forEach(function(os_type) {
+                $('#add_os_type').append('<option value="' + os_type.id + '">' + os_type.name + '</option>');
+            });
+        });
+    }
+    // 页面加载时执行
+    $(document).ready(function() {
+        //加载命令列表
+        loadCommands();
+        loadOsTypes();
+      
+    });
+    </script>
+{% endblock %} 
+
+

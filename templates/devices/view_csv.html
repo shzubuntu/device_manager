@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/jquery.dataTables.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>查看 CSV 文件: {{ file_name }}</h1>
+    <table id="csvTable" class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                {% for header in csv_data.0 %}
+                <th>
+                    {{ header }}
+                    <input type="text" class="form-control form-control-sm" placeholder="搜索 {{ header }}" />
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in csv_data %}
+                {% if forloop.first %}  {# 跳过第一行，因为它是表头 #}
+                {% else %}
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endif %}
+            {% empty %}
+            <tr>
+                <td colspan="{{ csv_data.0|length }}">没有数据</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url return_url %}" class="btn btn-secondary">返回 </a>
+</div>
+
+<!-- 初始化 DataTables -->
+<script>
+$(document).ready(function() {
+    var table = $('#csvTable').DataTable({
+        "paging": true, // 启用分页
+        "searching": true, // 启用搜索
+        "ordering": false // 启用排序
+    });
+
+    // 为每个搜索框添加事件监听
+    $('#csvTable thead input').on('keyup change', function() {
+        // 获取列索引
+        var colIndex = $(this).parent().index();
+        // 使用 DataTables 的搜索功能
+        table.column(colIndex).search(this.value).draw();
+    });
+});
+</script>
+{% endblock %}
+
+
+{% block scripts %}
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+{% endblock %}

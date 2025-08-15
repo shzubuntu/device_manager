@@ -1,0 +1,200 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备管理系统</title>
+  <!-- jQuery -->
+  <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+  <!-- Bootstrap CSS -->
+  <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="{% static 'css/all.min.css' %}" rel="stylesheet">
+  <!-- Custom CSS -->
+  {% block extra_css %}{% endblock %}
+  <style>
+    body {
+      padding-top: 56px;
+    }
+    .navbar {
+      box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    }
+    .main-content {
+      padding: 20px;
+    }
+    .clear-cache-btn {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">设备管理系统</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/">设备列表</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/device/terminal_single/">独立控制台</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/device/serial/">串口控制台</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/devices/inspect/">设备巡检</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              配置变更相关
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+              <li>
+                <a class="dropdown-item" href="/devices/config/">配置下发</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/devices/configs_list/">
+                  <i class="fas fa-history"></i> 配置下发历史
+                </a>
+              </li>
+              <li class="nav-item">
+                
+                <a class="dropdown-item" href="/configs_list/"><i class="fas fa-terminal"></i>命令集管理</a>
+              </li>
+            </ul>
+          </li>
+          
+          <!-- 添加更多功能下拉菜单 -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              更多功能
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+              <li>
+                <a class="dropdown-item" href="{% url 'devices_logs' %}">
+                  <i class="fas fa-file-alt"></i> 日志中心
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/os_types_list/">
+                  <i class="fas fa-server"></i> 类型管理
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/commands_list/">
+                  <i class="fas fa-terminal"></i> 命令管理
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/csv/files/">
+                  <i class="fas fa-file-csv"></i> CSV文件管理
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/textfsm/test/">
+                  <i class="fas fa-code"></i> textfsm测试
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/devices/inspections_list/">
+                  <i class="fas fa-history"></i> 巡检历史
+                </a>
+              </li>
+              {% if user.is_superuser %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="{% url 'caches_list' %}">
+                  <i class="fas fa-database"></i> 缓存管理
+                </a>
+              </li>
+              {% endif %}
+            </ul>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          {% if user.is_authenticated %}
+            <li class="nav-item">
+              <span class="nav-link text-white">欢迎, {{ user.username }}</span>
+            </li>
+            {% if user.is_superuser %}
+            <li class="nav-item">
+              <a class="nav-link" href="/admin/">
+                <i class="fas fa-user-shield"></i> 管理后台
+              </a>
+            </li>
+            {% endif %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'logout' %}">注销</a>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'login' %}">登录</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'register' %}">注册</a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主要内容 -->
+  <div class="main-content">
+    {% block content %}
+    {% endblock %}
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+  <!-- Custom JS -->
+  <script>
+    // 全局JavaScript代码
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+     // 添加全局 AJAX 错误处理
+    $(document).ajaxError(function(event, jqXHR, settings, error) {
+      if (jqXHR.status === 403 || jqXHR.status === 401) {
+        // 未登录或会话过期
+        alert('该操作需要登录，请登录后再试');
+        // 重定向到登录页面
+        //window.location.href = '/auth/login/';
+        return;
+      }
+      
+      // 处理其他错误
+      let errorMessage = '操作失败';
+      try {
+        const responseJSON = jqXHR.responseJSON;
+        if (responseJSON && responseJSON.message) {
+          errorMessage = responseJSON.message;
+        }
+      } catch (e) {
+        errorMessage = '未知错误';
+      }
+      console.log(errorMessage);
+    });
+
+  </script>
+  {% block scripts %}
+  {% endblock %}
+</body>
+</html>

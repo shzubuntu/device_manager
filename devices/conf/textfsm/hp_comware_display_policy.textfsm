@@ -1,0 +1,24 @@
+Value Filldown HOSTNAME (\S+)
+Value Required POLICY_ID (\S+)
+Value Required POLICY_NAME (\S+)
+Value POLICY_DESC (\S+)
+Value POLICY_ACTION (\S+)
+Value POLICY_VRF (\S+)
+Value List POLICY_SZONE (\S+)
+Value List POLICY_DZONE (\S+)
+Value List POLICY_SIP (\S+)
+Value List POLICY_DIP (\S+)
+Value List POLICY_SERVICE (\S+)
+
+Start
+  ^\s+sysname\s*${HOSTNAME}
+  ^\s+rule\s+${POLICY_ID}\s+name\s+${POLICY_NAME} 
+  ^\s+description\s+${POLICY_DESC}
+  ^\s+action\s+${POLICY_ACTION}
+  ^\s+vrf\s+${POLICY_VRF}
+  ^\s+source-zone\s+${POLICY_SZONE}
+  ^\s+destination-zone\s+${POLICY_DZONE}
+  ^\s+source-ip\s+${POLICY_SIP}
+  ^\s+destination-ip\s+${POLICY_DIP}
+  ^\s+service\s+${POLICY_SERVICE} -> Record Start
+  ^\s+rule -> Record Start

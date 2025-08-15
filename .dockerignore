@@ -1,0 +1,14 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+env
+venv
+logs
+mysql_data
+.idea
+.vscode
+.env
+.DS_Store
+node_modules

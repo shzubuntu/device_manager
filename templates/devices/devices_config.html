@@ -1,0 +1,892 @@
+{% extends "base.html" %}
+{% load  static %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">设备配置</h1>
+    <div class="row mb-3">
+        <div class="col">
+            <label for="deviceSelect" class="form-label">选择设备<span id="deviceCount">(0)</span></label>
+            <div class="position-relative mb-2">
+                <input type="search" class="form-control" 
+                    placeholder="搜索设备..." 
+                    oninput="filterDevices(this.value)"> 
+            </div>
+            <select id="deviceSelect" class="form-select" multiple ondblclick="selectDevices()">
+                <!-- 动态填充设备列表 -->
+            </select>
+        </div>
+        <div class="col-auto text-center align-self-center">
+            <div class="row">
+                <div class="col-12 mb-2">
+                    <button class="btn btn-primary" onclick="selectDevices()">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-secondary" onclick="deselectDevices()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col">
+            <label for="selectedDevices" class="form-label">已选设备<span id="selectedDeviceCount">(0)</span></label>
+            <div class="position-relative mb-2">
+                <input type="search" class="form-control" 
+                    placeholder="搜索已选设备..." 
+                    oninput="filterSelectedDevices(this.value)"> 
+            </div>
+            <select id="selectedDevices" class="form-select" multiple ondblclick="deselectDevices()">
+                <!-- 已选设备 -->
+            </select>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <!-- 选择命令集区域 -->
+        <div class="col">
+            <label for="commandSelect" class="form-label">选择命令集<span id="commandCount">(0)</span></label>
+            <div class="position-relative mb-2">
+                <input type="search" class="form-control" 
+                       placeholder="搜索命令..." 
+                       oninput="filterCommands(this.value)"> 
+            </div>
+            <select id="commandSelect" class="form-select" multiple ondblclick="selectCommands()">
+                <!-- 可以添加更多预置命令 -->
+            </select>
+        </div>
+        
+        <!-- 中间按钮区域 -->
+        <div class="col-auto text-center align-self-center">
+            <div class="row">
+                <div class="col-12 mb-2">
+                    <button class="btn btn-primary" onclick="selectCommands()">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-secondary" onclick="deselectCommands()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 已选命令区域 -->
+        <div class="col">
+            <label for="selectedCommands" class="form-label">已选命令集<span id="selectedCommandCount">(0)</span></label>
+            <div class="position-relative mb-2">
+                <input type="search" class="form-control" 
+                       placeholder="搜索已选命令..." 
+                       oninput="filterSelectedCommands(this.value)"> 
+            </div>
+            <select id="selectedCommands" class="form-select" multiple ondblclick="deselectCommands()">
+                <!-- 已选命令 -->
+            </select>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label for="customServerCommands" class="form-label">自定义服务器命令</label>
+            <textarea id="customServerCommands" class="form-control" placeholder="输入多行自定义命令" disabled></textarea>
+        </div>
+        <div class="col-md-6">
+            <label for="customNetworkCommands" class="form-label">自定义网络命令</label>
+            <textarea id="customNetworkCommands" class="form-control" placeholder="输入多行自定义命令" disabled></textarea>
+        </div>
+    </div>
+
+    <button id="startConfigBtn" class="btn btn-primary">下发配置</button>
+
+    <div id="progress" class="mt-4" style="display: none;">
+        <div class="progress mb-3" style="height: 20px;">
+            <div id="progressBar" 
+                 class="progress-bar progress-bar-striped bg-success" 
+                 role="progressbar" 
+                 style="width: 0%"
+                 aria-valuenow="0" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+            </div>
+        </div>
+        
+        <div class="progress-stats mb-3">
+            <div class="d-flex justify-content-between">
+                <div>
+                    进度: <span id="progressPercent">0%</span>
+                    | 已处理设备: <span id="processedDevices">0</span>
+                </div>
+                <div id="timeEstimate" class="text-muted"></div>
+            </div>
+        </div>
+        
+        <div id="progressList" class="result-container">
+            <!-- ... -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // 状态管理对象（新增）
+    const InspectionState = {
+        reset: function() {
+            // 重置所有统计信息 
+            ['processedDevices', 'processedCommands', 'progressPercent', 'timeEstimate'].forEach(id => {
+                const el = document.getElementById(id); 
+                if(el) el.textContent  = id === 'progressPercent' ? '0%' : '0';
+            });
+            
+            // 重置进度条 
+            const progressBar = document.getElementById('progressBar'); 
+            if(progressBar) {
+                progressBar.style.width  = '0%';
+                progressBar.setAttribute('aria-valuenow',  0);
+            }
+            
+            // 清空结果列表 
+            const progressList = document.getElementById('progressList'); 
+            if(progressList) progressList.innerHTML  = '';
+            
+            // 清除所有提示信息 
+            Array.from(document.querySelectorAll('.alert')).forEach(alert  => alert.remove()); 
+
+            // 新增：清除所有下载报告按钮 
+            Array.from(document.querySelectorAll('.download-report')).forEach(btn  => btn.remove()); 
+            
+            // 新增：清除报告链接缓存（如果 ReportManager 需要）
+            ReportManager.reportLinks.clear(); 
+        }
+    };
+    // 报告下载管理器
+    const ReportManager = {
+        init: function() {
+            this.reportLinks  = new Map();
+            this.setupDownloadHandler(); 
+        },
+        
+        setupDownloadHandler: function() {
+            document.addEventListener('click',  (e) => {
+                if (e.target.classList.contains('download-report'))  {
+                    e.preventDefault(); 
+                    this.handleDownload(e.target.dataset.reportId); 
+                }
+            });
+        },
+        
+        handleDownload: async function(reportId) {
+            try {
+                const response = await fetch(`/devices/configs/${reportId}/download/`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                const blob = await response.blob(); 
+                const filename = response.headers.get('Content-Disposition') 
+                                .split('filename=')[1]
+                                .replace(/"/g, '');
+                
+                const link = document.createElement('a'); 
+                link.href  = URL.createObjectURL(blob); 
+                link.download  = filename;
+                document.body.appendChild(link); 
+                link.click(); 
+                document.body.removeChild(link); 
+                URL.revokeObjectURL(link.href); 
+            } catch (error) {
+                console.error(' 下载失败:', error);
+                showError('报告下载失败，请重试');
+            }
+        }, 
+        
+        addReportLink: function(reportId) {
+            const link = document.createElement('a'); 
+            link.className  = 'btn btn-success download-report mt-3';
+            link.href  = '#';
+            link.dataset.reportId  = reportId;
+            link.innerHTML  = `
+                <i class="bi bi-download"></i>
+                下载报告 ${reportId.slice(0,  8)}
+            `;
+            
+            const container = document.getElementById('progress'); 
+            if (container) {
+                container.appendChild(link); 
+            }
+        }
+    };
+    // 初始化WebSocket连接
+    let socket = null;
+    let startTime = null;
+    let timeoutTimer = null;
+    const MAX_RETRY = 5;
+    let retryCount = 0;
+    // 初始化报告管理器
+    ReportManager.init(); 
+    // 统计信息更新（优化算法）
+    function updateLiveStats(data) {
+        const safeUpdate = (id, value) => {
+            const el = document.getElementById(id); 
+            if(el) el.textContent  = value;
+        };
+ 
+        try {
+            const completed = parseInt(data.completed)  || 0;
+            const total = parseInt(data.total)  || 1;  // 防止除零错误 
+            const commandsCompleted = parseInt(data.completed_commands)  || 0;
+            const commandsTotal = parseInt(data.total_commands)  || 1;
+ 
+            safeUpdate('processedCommands', `${commandsCompleted}/${commandsTotal}`);
+            safeUpdate('processedDevices', `${completed}/${total}`);
+            safeUpdate('progressPercent', `${Math.min(100,  Math.round(completed/total*100))}%`); 
+        } catch (e) {
+            console.error(" 统计更新异常:", e);
+        }
+    }
+    
+    function connectWebSocket() {
+        if(retryCount >= MAX_RETRY) {
+            showError('连接重试次数超限，请手动刷新页面');
+            return;
+        }
+ 
+        try {
+            const csrftoken = getCookie('csrftoken');
+            socket = new WebSocket(`ws://${location.host}/ws/config/?token=${csrftoken}`); 
+            
+            socket.onopen  = () => {
+                console.log("WebSocket  连接已建立");
+                document.getElementById('startConfigBtn').disabled  = false;
+                retryCount = 0;  // 重置重试计数器 
+            };
+ 
+            socket.onmessage  = handleWebSocketMessage;
+ 
+            socket.onclose  = () => {
+                console.log(" 连接断开，3秒后重连...");
+                document.getElementById('startConfigBtn').disabled  = true;
+                retryCount++;
+                setTimeout(connectWebSocket, 3000);
+            };
+ 
+            socket.onerror  = (error) => {
+                console.error("WebSocket 错误:", error);
+                socket.close(); 
+            };
+ 
+        } catch (error) {
+            console.error("WebSocket 初始化失败:", error);
+        }
+    }
+ 
+    // 消息处理（优化结构）
+    function handleWebSocketMessage(event) {
+        try {
+            const data = JSON.parse(event.data); 
+            console.log(" 收到信息", data);
+ 
+            const handlers = {
+                'command.result':  handleCommandResult,
+                'progress.update':  handleProgressUpdate,
+                'execute.complete':  handleConfigComplete,
+                'error': handleErrorMessage,
+                'report.created':  handleReportCreated
+            };
+ 
+            if (handlers[data.type]) {
+                handlers[data.type](data);
+            } else {
+                console.warn(" 未知消息类型:", data.type); 
+            }
+        } catch (e) {
+            console.error(" 消息处理失败:", e);
+        }
+    }
+    // 新增报告创建处理器
+    function handleReportCreated(data) {
+        if (data.report_id  && data.status  === 'ready') {
+            ReportManager.addReportLink(data.report_id); 
+            showSuccess(`报告已生成，可随时下载`);
+        } else if(data.status  === 'processing') {
+            updateProgress({message: '正在生成最终报告...'});
+        }
+    }
+    // 新增处理函数 
+    function handleCommandResult(data) {
+        appendCommandResult({
+            device_name: data.device_name, 
+            device_type:data.device_type,
+            device_ip:data.device_ip,
+            os_type:data.os_type,
+            command: data.command, 
+            result: data.result  
+        });
+    }
+ 
+    function handleProgressUpdate(data) {
+        updateProgress(data);
+        updateLiveStats(data);
+    }
+ 
+    // 新增完成处理函数 
+    function handleConfigComplete(data) {
+        try {
+            clearTimeout(timeoutTimer);
+            handleCompletion(data); // 修改后的正确调用 
+            if(data.warning_count  > 0){
+                showWarning(`发现${data.warning_count} 个警告项`);
+            }
+            if (data.report_id)  {
+                ReportManager.addReportLink(data.report_id); 
+            }
+        } catch (e) {
+            console.error(' 完成处理异常:', e);
+            showError('完成处理过程出现异常');
+        }
+    }
+    function handleErrorMessage(data) {
+        showError(data.message  || '发生未知错误');
+    }
+
+    // 设备列表加载
+    async function loadDevices() {
+        try {
+            const response = await fetch('/devices/');
+            if (!response.ok) throw new Error('设备加载失败');
+            
+            const devices = await response.json();
+            const select = document.getElementById('deviceSelect');
+            //select.innerHTML = devices.map(device => `
+            //    <option value="${device.id}" 
+            //            class="${device.status === 'online' ? 'text-success' : ''}">
+            //        [${device.os_type}]${device.name} (${device.ip_address})
+            //    </option>
+            //`).join('');
+            select.innerHTML = devices.map(device => `
+                <option value="${device.id}" 
+                        class=" ">
+                    [${device.os_type}]${device.name} (${device.ip_address})
+                </option>
+            `).join('');
+            // 更新设备数量
+            document.getElementById('deviceCount').textContent=`(${devices.length})`;
+
+        } catch (error) {
+            showError(`设备加载失败: ${error.message}`);
+        }
+    }
+    
+    function appendCommandResult(data) {
+        try {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item mb-3 p-3 border rounded collapse-container';
+            
+            // 添加更健壮的字段处理
+            const deviceName = data.device_name || '未知设备';
+            const command = data.command || '未知命令';
+            const result = data.result || '无输出结果';
+            const deviceType = data.device_type || '无输出结果';
+            const osType = data.os_type || '无输出结果';
+            const deviceIp = data.device_ip || '无输出结果';
+            let isCollapsed = true;
+
+            // 定义 deviceName 到背景颜色的映射
+            const deviceColorMap = {
+                "server": "bg-danger",
+                "switch": "bg-primary",
+                // 可以根据需要添加更多映射
+            };
+            // 根据 deviceName 获取对应的背景颜色类名
+            const badgeBgClass = deviceColorMap[deviceType] || "bg-warning";
+
+            resultItem.innerHTML  = `
+                <div class="header-section" style="cursor:pointer">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="command-group d-flex align-items-center gap-2">
+                            <span class="badge ${badgeBgClass}">${deviceName}_${deviceIp}</span>
+                            <span class="badge ${badgeBgClass}">${osType}</span>
+                            <div class="command-text text-success">${command}</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+                            <i class="toggle-icon bi bi-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-wrapper" style="overflow:hidden; transition: max-height 0.3s">
+                    <pre class="output-text mt-2">${escapeHtml(result)}</pre>
+                </div>
+            `;
+            const header = resultItem.querySelector('.header-section'); 
+            const content = resultItem.querySelector('.content-wrapper');
+            const icon = resultItem.querySelector('.toggle-icon'); 
+
+            const progressList = document.getElementById('progressList');
+            if (progressList) {
+                progressList.appendChild(resultItem);
+                progressList.scrollTo({
+                    top: progressList.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+
+            header.addEventListener('click',  () => {
+                isCollapsed = !isCollapsed;
+                content.style.maxHeight  = isCollapsed ? "0" : `${content.scrollHeight}px`; 
+                icon.classList.toggle('bi-chevron-up',  !isCollapsed);
+                icon.classList.toggle('bi-chevron-down',  isCollapsed);
+            });
+        } catch (e) {
+            console.error("结果渲染失败:", e);
+        }
+    }
+    // 添加HTML转义函数防御XSS
+    function escapeHtml(unsafe) {
+        return unsafe.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    // 时间预估计算（优化算法）
+    function updateTimeEstimate(data) {
+        if (!startTime || data.completed  === 0) return;
+ 
+        const elapsed = (Date.now()  - startTime) / 1000;
+        const remaining = data.completed  > 0 
+            ? ((elapsed / data.completed)  * (data.total  - data.completed)).toFixed(1) 
+            : '计算中...';
+            
+        document.getElementById('timeEstimate').textContent  = 
+            `预计剩余时间: ${remaining}秒`;
+    }
+    // 修改进度更新匹配类型
+    function updateProgress(data) {
+        // 添加数据校验
+        if (!data || typeof data.completed === 'undefined' || !data.total) {
+            console.error("无效的进度数据:", data);
+            return;
+        }
+        
+        const progressPercent = Math.min(100,  (data.completed  / data.total  * 100)).toFixed(1);
+        const progressBar = document.getElementById('progressBar'); 
+        
+        if (progressBar) {
+            // 使用requestAnimationFrame优化动画 
+            requestAnimationFrame(() => {
+                progressBar.style.width  = `${progressPercent}%`;
+                progressBar.setAttribute('aria-valuenow',  progressPercent);
+            });
+            
+            // 更新预计时间 
+            updateTimeEstimate(data);
+        }
+    }
+
+    function handleCompletion(data) {
+        clearTimeout(timeoutTimer);
+        const btn = document.getElementById('startConfigBtn'); 
+        btn.disabled  = false;
+        btn.innerHTML  = '下发配置';
+        
+        // 添加完成音效（可选）
+        //new Audio('/static/sounds/complete.mp3').play().catch(()  => {});
+        
+        // 构造完成信息 
+        const completionTime = ((Date.now()  - startTime) / 1000).toFixed(1);
+        //const resultStats = `成功命令: ${data.success_count  || 0}个 | 失败命令: ${data.failed_count  || 0}个`;
+        
+        // 创建提示框 
+        const div = document.createElement('div'); 
+        div.className  = 'alert alert-success mt-3';
+        div.innerHTML  = `
+            <i class="bi bi-check-circle-fill me-2"></i>
+            ${data.message  || '巡检完成'}  总耗时: ${completionTime}秒
+        `;
+        
+        // 添加结果导出按钮（可选扩展功能）
+        if(data.report_url){ 
+            div.innerHTML  += `
+                <div class="mt-2">
+                    <a href="${data.report_url}"  
+                    class="btn btn-sm btn-outline-success"
+                    download="inspection_report_${new Date().toISOString()}.txt">
+                        <i class="bi bi-download me-1"></i>下载完整报告 
+                    </a>
+                </div>
+            `;
+        }
+    
+        document.getElementById('progress').appendChild(div); 
+    }
+
+    // 工具函数
+    function calculateRemainingTime(data) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        return ((elapsed / data.completed) * (data.total - data.completed)).toFixed(1);
+    }
+
+    function scrollToBottom() {
+        const list = document.getElementById('progressList');
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function showError(message) {
+        const div = document.createElement('div');
+        div.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        div.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.getElementById('progress').appendChild(div);
+    }
+
+    // 选择设备的函数
+    function selectDevices() {
+        const deviceSelect = document.getElementById('deviceSelect');
+        const selectedDevices = document.getElementById('selectedDevices');
+        
+        Array.from(deviceSelect.selectedOptions).forEach(option => {
+            const newOption = document.createElement('option');
+            newOption.value = option.value;
+            newOption.textContent = option.textContent;
+            selectedDevices.appendChild(newOption);
+            option.remove(); // 从可选设备中移除
+        });
+    }
+
+    // 取消选择设备的函数
+    function deselectDevices() {
+        const selectedDevices = document.getElementById('selectedDevices');
+        const deviceSelect = document.getElementById('deviceSelect');
+        
+        Array.from(selectedDevices.selectedOptions).forEach(option => {
+            const newOption = document.createElement('option');
+            newOption.value = option.value;
+            newOption.textContent = option.textContent;
+            deviceSelect.appendChild(newOption);
+            option.remove(); // 从已选设备中移除
+        });
+    }
+
+    // 选择命令的函数
+    function selectCommands() {
+        const commandSelect = document.getElementById('commandSelect');
+        const selectedCommands = document.getElementById('selectedCommands');
+        
+        Array.from(commandSelect.selectedOptions).forEach(option => {
+            const newOption = document.createElement('option');
+            newOption.value = option.value;
+            newOption.textContent = option.textContent;
+            selectedCommands.appendChild(newOption);
+            option.remove(); // 从可选命令中移除
+        });
+    }
+
+    // 取消选择命令的函数
+    function deselectCommands() {
+        const selectedCommands = document.getElementById('selectedCommands');
+        const commandSelect = document.getElementById('commandSelect');
+        
+        Array.from(selectedCommands.selectedOptions).forEach(option => {
+            const newOption = document.createElement('option');
+            newOption.value = option.value;
+            newOption.textContent = option.textContent;
+            commandSelect.appendChild(newOption);
+            option.remove(); // 从已选命令中移除
+        });
+    }
+
+   // 事件绑定
+   // 添加批量操作支持 
+    document.addEventListener('keydown',  (e) => {
+        if(e.ctrlKey  && e.key  === 'a') {
+            const activeElement = document.activeElement;
+            if (activeElement.tagName === 'SELECT') {
+                Array.from(activeElement.options).forEach(opt => {
+                    if (opt.style.display !== 'none') { // 只选择可见的选项
+                        opt.selected = true;
+                    }
+                });
+            }
+        }
+    });
+    
+    // 启动巡检（整合状态重置）
+    document.getElementById('startConfigBtn').addEventListener('click',  () => {
+        // 执行状态重置 
+        InspectionState.reset(); 
+        
+        // 验证输入 
+        const devices = Array.from(document.getElementById('selectedDevices').options); 
+        const commands = [
+            ...Array.from(document.getElementById('selectedCommands').options), 
+            
+        ];
+        const customServerCommands = [
+            ...document.getElementById('customServerCommands').value.split('\n').filter(cmd  => cmd.trim()) 
+        ]
+        const customNetworkCommands = [
+            ...document.getElementById('customNetworkCommands').value.split('\n').filter(cmd  => cmd.trim()) 
+        ]
+ 
+        if (devices.length  === 0) return alert('请选择至少一个设备');
+        if (commands.length  === 0 && customServerCommands.length === 0 && customNetworkCommands.length === 0) return alert('请选择或输入至少一个命令');
+ 
+        // 启动流程 
+        startTime = Date.now(); 
+        const btn = document.getElementById('startConfigBtn'); 
+        btn.disabled  = true;
+        btn.innerHTML  = `<span class="spinner-border spinner-border-sm me-2"></span>巡检进行中...`;
+ 
+        document.getElementById('progress').style.display  = 'block';
+        
+        // 设置超时检测 
+        timeoutTimer = setTimeout(() => {
+            showError('操作超时，请检查设备连接');
+            btn.disabled  = false;
+            btn.innerHTML  = '下发配置';
+        }, 300000);
+ 
+        // 发送指令 
+        socket.send(JSON.stringify({ 
+            type: 'config.start',
+            devices: devices.map(opt  => opt.value), 
+            commands: commands.map(cmd  => typeof cmd === 'string' ? cmd : cmd.value) ,
+            server_commands:customServerCommands,
+            network_commands:customNetworkCommands
+        }));
+    });
+    function filterDevices(searchTerm) {
+        const select = document.getElementById('deviceSelect');
+        const options = select.options;
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            option.style.display = option.text.toLowerCase().includes(searchTerm.toLowerCase()) ? '' : 'none';
+        }
+    };
+    // 页面加载时初始化
+    window.addEventListener('load', () => {
+        connectWebSocket();
+        loadDevices();
+        loadCommands();
+        updateCount();
+        //populateCommandList();
+        // 添加键盘快捷键支持 
+        document.addEventListener('keydown',  (e) => {
+            if (e.ctrlKey  && e.key  === 'Enter') {
+                document.getElementById('startConfigBtn').click(); 
+            }
+        });
+    });
+
+    function loadCommands() {
+        //console.log("正在获取命令列表...");
+        fetch("/configs/")
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('网络响应不正常');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const commandSelect = document.getElementById('commandSelect');
+                commandSelect.innerHTML = ''; // 清空现有选项
+                data.forEach(commands => {
+                    const option = document.createElement('option');
+                    option.value = `${commands.id}`; // 使用命令id作为值
+                    option.textContent = `<${commands.os_type}>${commands.commands_name}`; // 显示 os_type 的名称和命令文本
+                    commandSelect.appendChild(option);
+                });
+                // 更新命令数量
+                document.getElementById('commandCount').textContent=`(${data.length})`;
+            })
+            .catch(error => {
+                console.error("获取命令列表失败:", error);
+            });
+    }
+
+    // 在页面加载时调用 loadCommands
+    //document.addEventListener('DOMContentLoaded', updateCount);
+
+    // 过滤设备
+    function filterDevices(searchTerm) {
+        const select = document.getElementById('deviceSelect');
+        const options = select.options;
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            option.style.display = option.text.toLowerCase().includes(searchTerm.toLowerCase()) ? '' : 'none';
+        }
+    }
+
+    // 过滤已选设备
+    function filterSelectedDevices(searchTerm) {
+        const select = document.getElementById('selectedDevices');
+        const options = select.options;
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            option.style.display = option.text.toLowerCase().includes(searchTerm.toLowerCase()) ? '' : 'none';
+        }
+    }
+
+    // 过滤命令
+    function filterCommands(searchTerm) {
+        const select = document.getElementById('commandSelect');
+        const options = select.options;
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            option.style.display = option.text.toLowerCase().includes(searchTerm.toLowerCase()) ? '' : 'none';
+        }
+    }
+
+    // 过滤已选命令
+    function filterSelectedCommands(searchTerm) {
+        const select = document.getElementById('selectedCommands');
+        const options = select.options;
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i];
+            option.style.display = option.text.toLowerCase().includes(searchTerm.toLowerCase()) ? '' : 'none';
+        }
+    }
+    function updateCount() {
+        // 更新条目数量
+        // 获取已选设备的 select 元素
+        const deviceCountSelect = document.getElementById('deviceSelect');
+        const selectedDevicesSelect = document.getElementById('selectedDevices');
+        const commandCountSelect = document.getElementById('commandSelect');
+        const selectedCommandsSelect = document.getElementById('selectedCommands');
+        
+        // 创建一个 MutationObserver 实例
+        const observer = new MutationObserver((mutationsList) => {
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'childList') {
+                    // 当子节点发生变化时，更新已选设备的数量显示
+                    const deviceCount = document.getElementById('deviceCount');
+                    const selectedDeviceCount = document.getElementById('selectedDeviceCount');
+                    const commandCount = document.getElementById('commandCount');
+                    const selectedCommandCount = document.getElementById('selectedCommandCount');
+                    deviceCount.textContent = `(${deviceCountSelect.options.length})`;
+                    selectedDeviceCount.textContent = `(${selectedDevicesSelect.options.length})`;
+                    commandCount.textContent = `(${commandCountSelect.options.length})`;
+                    selectedCommandCount.textContent = `(${selectedCommandsSelect.options.length})`;
+                }
+            }
+        });
+
+        // 配置观察选项
+        const config = { childList: true };
+
+        // 开始观察已选设备的 select 元素
+        observer.observe(selectedDevicesSelect, config);
+        observer.observe(selectedCommandsSelect, config);
+        observer.observe(deviceCountSelect, config);
+        observer.observe(commandCountSelect, config);
+    }
+</script>
+<style>
+    .progress-bar {
+        transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                    background-color 0.3s ease;
+        box-shadow: 0 0.2rem 0.4rem rgba(0,0,0,0.1);
+    }
+    /* 新增响应式设计 */
+    @media (max-width: 768px) {
+        .result-container {
+            max-height: 50vh;
+        }
+        
+        .progress-stats div {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        #timeEstimate {
+            margin-top: 0.5rem;
+        }
+    }
+    /* 进度文本样式 */
+    .progress-bar::after {
+        content: attr(aria-valuenow) "%";
+        position: absolute;
+        right: 10px;
+        color: rgba(0,0,0,0.7);
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    .result-container {
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        max-height: 70vh;
+        overflow-y: auto;
+        background: #f8f9fa;
+    }
+    .result-item {
+        background: white;
+        transition: all 0.3s ease;
+    }
+    .result-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    }
+    .command-text {
+        font-family: 'Fira Code', monospace;
+        font-size: 0.9em;
+        transition: opacity 0.3s;
+    }
+    .command-group:hover .command-text {
+        opacity: 0.8;
+    }
+    .output-text1 {
+        font-size: 0.85em;
+        line-height: 1.4;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    /* 建议添加的CSS */
+    .collapse-container {
+        position: relative;
+    }
+    .toggle-icon {
+        position: absolute;
+        right: 1rem;
+        bottom: 0.5rem;
+        transition: transform 0.3s;
+    }
+    .bi-chevron-up {
+        transform: rotate(180deg);
+    }
+    /* 创建暗色主题类 */
+    .content-wrapper {
+        --bg-dark: #2d2d2d; /* 专业代码编辑器底色 */
+        --text-light: #dcdcdc;
+        --border-dark: #3c3c3c;
+        
+        background: var(--bg-dark);
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .output-text {
+        color: var(--text-light);
+        background: transparent;
+        border: 1px solid var(--border-dark);
+        padding: 1.25rem;
+        font-family: 'Fira Code', monospace; /* 等宽字体优化 */
+        line-height: 1.6;
+        overflow-x: auto; /* 横向滚动支持 */
+        scrollbar-width: thin;
+        scrollbar-color: #5c5c5c transparent; /* 滚动条配色 */
+    }
+    .text-success {
+        color: #28a745 !important;  /* 提高可读性 */
+        font-weight: 500;
+    }
+    
+    .badge.bg-primary  {
+        background: #007bff linear-gradient(45deg, #006fe6, #007bff) !important;
+    }
+</style>
+{% endblock %}

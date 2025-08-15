@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        /* 打印优化体系 */
+        @page { margin: 2cm; }
+        body {
+            font-family: 'Times New Roman', SimSun;
+            line-height: 1.5;
+            color: #333;
+        }
+ 
+        /* 标题系统 */
+        .report-title {
+            border-bottom: 3px double #666;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+ 
+        /* 表格系统 */
+        .data-table {
+            width: 100%;
+            border: 1px solid #ddd;
+            margin: 1rem 0;
+        }
+        .data-table th {
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .data-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+ 
+        /* 状态标识 */
+        .result-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+        .success-indicator { background: #28a745; }
+        .failure-indicator { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <!-- 报告头 -->
+    <div style="text-align:center;margin-bottom:2rem">
+        <h1 class="report-title" style="margin:0 0 0.5rem">设备巡检报告</h1>
+        <div style="color:#666">
+            <span>生成时间: {{ meta.generated_time  }}</span>
+            <span style="margin:0 1rem">|</span>
+            <span>报告编号: {{ meta.report_id  }}</span>
+        </div>
+    </div>
+ 
+    <!-- 摘要表格 -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width:30%">指标项</th>
+                <th>数值</th>
+                <th>备注</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>检测设备总数</td>
+                <td>{{ statistics.device_count  }}</td>
+                <td>包含所有网络节点设备</td>
+            </tr>
+            <tr>
+                <td>执行成功率</td>
+                <td>成功命令占比</td>
+            </tr>
+            <tr>
+                <td>总耗时</td>
+                <td colspan="2">{{ timing.duration  }}</td>
+            </tr>
+        </tbody>
+    </table>
+ 
+    <!-- 详细结果 -->
+    <h3 style="margin:1.5rem 0">设备执行明细</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>设备名称</th>
+                <th>执行状态</th>
+                <th>操作指令</th>
+                <th>执行时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for res in results %}
+            <tr>
+                <td>{{ res.device  }}</td>
+                <td>
+                    <span class="result-indicator {{ 'success-indicator' if res.status=='success'  else 'failure-indicator' }}"></span>
+                    {{ res.status  | upper }}
+                </td>
+                <td><code>{{ res.command  }}</code></td>
+                <td>{{ res.timestamp  }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+ 
+    <!-- 脚注系统 -->
+    <div style="margin-top:3rem;color:#666;font-size:0.9em">
+        <div style="border-top:1px solid #ddd;padding-top:1rem">
+            备注：本报告由智能巡检系统自动生成，数据采集时间范围 {{ timing.start  }} 至 {{ timing.end  }}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+Value Required LOCAL_INTERFACE (\S+)
+Value CHASSIS_ID (.+?)
+Value Required NEIGHBOR_PORT_ID (.*?)
+Value Description (.*)
+Value NEIGHBOR (.+?)
+Value SYSTEM_DESCRIPTION (.*)
+Value CAPABILITIES (.*?)
+Value MANAGEMENT_IP (\S+)
+Value Frame_size (\d+)
+Value Discover_time (.*)
+
+Start
+  ^\S+\s+has\s+\d+\s+neighbor -> Continue.Record
+  ^${LOCAL_INTERFACE}\s+has\s+\d+\s+neighbor
+  ^Chassis\s+ID\s+:${CHASSIS_ID}$$
+  ^Port\s+ID\s+:${NEIGHBOR_PORT_ID}\s*$$
+  ^Port\s+description\s+:${Description}\s*$$
+  ^System\s+name\s+:${NEIGHBOR}\s*$$
+  ^System\s+description\s+:${SYSTEM_DESCRIPTION}$$
+  ^System\s+capabilities\s+enabled\s+:${CAPABILITIES}\s*$$
+  ^Management\s+address\s*:\s*${MANAGEMENT_IP}
+  ^Maximum\s+frame\s+Size\s+:${Frame_size}$$
+  ^Discovered\s+time\s+:${Discover_time}$$

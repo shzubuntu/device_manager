@@ -1,0 +1,11 @@
+Value Power_id (PWR\d+)
+Value Present (YES|NO)
+Value Mode (AC|DC|--)
+Value Status (\S+|--)
+Value PA (\S+|--)
+Value PV (\S+|--)
+Value PP (\d+|--)
+Value PRP (\d+|--)
+
+Start
+  ^\s*\S*${Power_id}\s+${Present}\s+${Mode}\s+${Status}\s+${PA}\s+${PV}\s+${PP}\s+${PRP}$$ -> Record

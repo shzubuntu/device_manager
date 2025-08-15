@@ -1,0 +1,13 @@
+Value CHASSIS_ID (\d+)
+Value SLOT_ID (\d+)
+Value CPU_ID (\d+)
+Value LAST_5_SEC_CPU (\S+)
+Value LAST_1_MIN_CPU (\S+)
+Value LAST_5_MIN_CPU (\S+)
+
+Start
+  ^\s*Chassis\s*${CHASSIS_ID}\s*Slot\s*${SLOT_ID}\s*CPU\s*${CPU_ID}
+  ^\s*Slot\s*${SLOT_ID}\s*CPU\s*${CPU_ID}
+  ^\s*${LAST_5_SEC_CPU}\s*in\s*last\s*5\s*seconds
+  ^\s*${LAST_1_MIN_CPU}\s*in\s*last\s*1\s*minute
+  ^\s*${LAST_5_MIN_CPU}\s*in\s*last\s*5\s*minutes -> Continue.Record

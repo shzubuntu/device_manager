@@ -1,0 +1,12 @@
+Value Filldown CHASSIS_NAME (Chassis|Slot)
+Value Filldown CHASSIS_ID (\d+)
+Value Required POWER_ID (\d+)
+Value POWER_STATE (\S+)
+Value POWER_MODE (\S+)
+Value POWER_A (\S+)
+Value POWER_V (\S+)
+Value POWER_W (\S+)
+
+Start
+  ^\s*${CHASSIS_NAME}\s*${CHASSIS_ID}\s*:
+  ^\s*${POWER_ID}\s*${POWER_STATE}\s*${POWER_MODE}\s*${POWER_A}\s*${POWER_V}\s*${POWER_W} -> Continue.Record

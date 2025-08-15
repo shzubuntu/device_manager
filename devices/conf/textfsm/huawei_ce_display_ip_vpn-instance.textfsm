@@ -1,0 +1,21 @@
+Value Filldown SYSNAME (\S+)
+Value Required VRF (\S+)
+Value DESCRIPTION (\S+)
+Value RD (\S+)
+Value List VT_IN (\S+)
+Value List VT_IN_E (\S+)
+Value List VT_OUT (\S+)
+Value List VT_OUT_E (\S+)
+Value VNI (\d+)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^ip vpn-instance\s*${VRF}
+  ^\s+description\s+${DESCRIPTION}
+  ^\s+route-distinguisher\s+${RD}
+  ^\s+vpn-target\s+${VT_IN_E}\s+import-extcommunity evpn
+  ^\s+vpn-target\s+${VT_IN}\s+import-extcommunity
+  ^\s+vpn-target\s+${VT_OUT_E}\s+export-extcommunity evpn
+  ^\s+vpn-target\s+${VT_OUT}\s+export-extcommunity
+  ^\s+vxlan vni\s+${VNI}
+  ^# -> Continue.Record

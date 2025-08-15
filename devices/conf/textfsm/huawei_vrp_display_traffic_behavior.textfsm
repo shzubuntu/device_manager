@@ -1,0 +1,8 @@
+Value Required Behavior_name (\S+)
+Value Behavior_action (.+)
+
+Start
+  ^\s+Behavior:  -> Continue.Record
+  ^\s+Behavior:\s*${Behavior_name}\s*$$
+  ^\s+${Behavior_action}\s*$$
+  ^\s+$$ -> Start

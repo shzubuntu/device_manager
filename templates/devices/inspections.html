@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>设备巡检历史记录</h1>
+    <div class="mb-3">
+        <button class="btn btn-danger" id="deleteSelected">
+            <i class="fas fa-trash"></i> 批量删除
+        </button>
+    </div>
+    <table class="table mt-3" id="inspections_table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>设备</th>
+                <th>命令</th>
+                <th>server_commands</th>
+                <th>network_commands</th>
+                <th>开始时间</th>
+                <th>结束时间</th>
+                <th>操作</th>
+                <th>报告</th>
+            </tr>
+        </thead>
+        <tbody id="inspectionsTableBody">
+            <!-- OS类型数据将通过 JavaScript 动态填充 -->
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let socket = null;
+
+    function connectWebSocket() {
+        const csrftoken = getCookie('csrftoken');
+        socket = new WebSocket(`ws://${location.host}/ws/inspection/?token=${csrftoken}`);
+
+        socket.onopen = () => {
+            console.log("WebSocket 连接已建立");
+        };
+
+        socket.onmessage  = handleWebSocketMessage;
+
+        socket.onclose = () => {
+            console.log("WebSocket 连接已关闭");
+        };
+
+        socket.onerror = (error) => {
+            console.error("WebSocket 错误:", error);
+        };
+    }
+    // 消息处理（优化结构）
+    function handleWebSocketMessage(event) {
+        try {
+            const data = JSON.parse(event.data); 
+            console.log(" 收到信息", data);
+ 
+            const handlers = {
+                //'command.result':  handleCommandResult,
+                //'progress.update':  handleProgressUpdate,
+                'execute.complete':  handleInspectionComplete,
+                //'error': handleErrorMessage,
+                //'report.created':  handleReportCreated
+            };
+ 
+            if (handlers[data.type]) {
+                handlers[data.type](data);
+            } else {
+                console.warn(" 未知消息类型:", data.type); 
+            }
+        } catch (e) {
+            console.error(" 消息处理失败:", e);
+        }
+    }
+    // 新增完成处理函数 
+    function handleInspectionComplete(data) {
+        try {
+            //关闭WebSocket
+            socket.close();
+            if(data.warning_count  > 0){
+                showWarning(`发现${data.warning_count} 个警告项`);
+            }
+            // 弹出确认窗口
+            const userConfirmed = confirm("巡检已完成，是否刷新页面？");
+            if (userConfirmed) {
+                loadInspections();
+            }
+        } catch (e) {
+            console.error(' 完成处理异常:', e);
+            showError('完成处理过程出现异常');
+        }
+    }
+    function deleteHistory(id) {
+        fetch(`/devices/inspections/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        }).then(response => {
+            if (response.ok) {
+                alert('删除成功');
+                loadInspections();
+            } else {
+                alert('删除失败');
+            }
+        });
+    }
+    // 批量删除
+    $('#deleteSelected').on('click', function() {
+        const selectedLogs = $('.inspection_checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        if (selectedLogs.length === 0) {
+            alert('请至少选择一个日志文件');
+            return;
+        }
+        if (confirm('确定要删除选中的日志文件吗？')) {
+            $.ajax({
+                url: '/devices/inspections/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    ids: selectedLogs,
+                }),
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                success: function(response) {
+                    alert('日志文件删除成功');
+                    loadInspections();
+                },
+            });
+        }
+    });
+    function executeHistory(id) {
+        // 发送 WebSocket 消息以执行巡检
+        socket.send(JSON.stringify({ type: 'inspect.again', id: id }));
+        alert('巡检已重新执行');
+    }
+
+    function loadInspections() {
+        $.ajax({
+            url: '/devices/inspections/',
+            type: 'GET',
+            success: function(response) {
+                console.log('巡检列表:', response);
+                const inspectionsTableBody = $('#inspectionsTableBody');
+                inspectionsTableBody.empty();
+                response.histories.forEach(history => {
+                    const serverCommands = history.server_commands.split(';').join('<br>');
+                    const networkCommands = history.network_commands.split(';').join('<br>');
+
+                    const row = `<tr>
+                        <td><input type="checkbox" class="inspection_checkbox" value="${history.id}"></td>
+                        <td>${history.device_ids}</td>
+                        <td>${history.command_ids}</td>
+                        <td>${serverCommands}</td>
+                        <td>${networkCommands}</td>
+                        <td>${history.start_time}</td>
+                        <td>${history.end_time}</td>
+                        <td>
+                            <button class="btn btn-danger" onclick="deleteHistory('${history.id}')">删除</button>
+                            <button class="btn btn-primary" onclick="executeHistory('${history.id}')">再次执行</button>
+                        </td>
+                        <td>
+                            <a href="/devices/inspections/${history.id}/download/" class="btn btn-secondary">查看</a>
+                        </td>
+                    </tr>`;
+                    inspectionsTableBody.append(row);
+                });
+            },
+            error: function(error) {
+                console.error('巡检列表加载失败:', error);
+            }
+        });
+    }
+    $('#selectAll').click(function() {
+        //$('input[type="checkbox"]').prop('checked', this.checked);
+        const isChecked = this.checked;  // 获取全选复选框的状态
+        // 只选择当前可见的设备行
+        $('#inspections_table tr:visible input[type="checkbox"]').prop('checked', isChecked);
+    });
+
+    // 监听单个复选框的变化事件
+    $('#inspectionsTableBody').on('change', 'input[type="checkbox"]', function() {
+        const allCheckboxes = $('#inspectionsTableBody input[type="checkbox"]');
+        const checkedCheckboxes = allCheckboxes.filter(':checked');
+        // 如果所有单个复选框都被选中，则全选复选框也选中；否则取消选中
+        $('#selectAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+    });
+    // 页面加载时连接 WebSocket
+    $(document).ready(function() {
+        loadInspections(); // 加载巡检列表
+        connectWebSocket(); // 连接 WebSocket
+    });
+</script>
+{% endblock %} 

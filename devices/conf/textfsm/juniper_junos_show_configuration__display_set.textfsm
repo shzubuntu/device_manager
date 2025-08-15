@@ -1,0 +1,14 @@
+Value Filldown HOSTNAME (\S+)
+Value Required INTERFACE (\S+)
+Value NET (\S+)
+Value VLANID ([-\d]+)
+Value VOICE_VLANID (\d+)
+Value POE_STATUS (\S+)
+Value DESC (\S+)
+Value MAC (\S+)
+
+Start
+  ^set system host-name ${HOSTNAME}
+  ^set interfaces\s*${INTERFACE}\s*description\s*${DESC}
+  ^set interfaces\s*${INTERFACE}\s*unit\s*${VLANID}\s*family\s*inet\s+address\s+${NET}$$ -> Continue.Record
+  ^set interfaces\s*${INTERFACE}\s*unit\s*\d+\s*family\s*ethernet-switching\s*vlan\s*members\s*${VLANID} -> Continue.Record

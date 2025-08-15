@@ -1,0 +1,37 @@
+Value Filldown SYSNAME (\S+)
+Value Required INTERFACE (\S+)
+Value VRF (\S+)
+Value List NET (\S+ \S+)
+Value List VSI (\S+)
+Value VLANID (\d+)
+Value VLANS (.*)
+Value VOICE_VLANID (\d+)
+Value POE_STATUS (\S+)
+Value DESC (\S+)
+Value TRANS (\S+)
+Value ACL_NAME (\S+)
+Value ACL_D (\S+)
+Value MAC (\S+)
+Value AGGID (\d+)
+Value VRRPID (\d+)
+Value VIP (\S+)
+Value VRRP_STATUS (active|standby)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^interface\s*${INTERFACE}
+  ^\s+ip\s+binding\s+vpn-instance\s+${VRF}
+  ^\s+ip\s+address\s+${NET}
+  ^\s+xconnect\s+vsi\s+${VSI}
+  ^\s+description\s*${DESC}
+  ^\s+device\s+transceiver\s*${TRANS}
+  ^\s+traffic-filter acl\s+${ACL_NAME}\s+${ACL_D}
+  ^\s+port default vlan\s+${VLANID}
+  ^\s+port access vlan\s+${VLANID}
+  ^\s+port trunk allow-pass vlan\s+${VLANS}
+  ^\s+vrrp\s+vrid\s+${VRRPID}\s+virtual-ip\s+${VIP}\s+${VRRP_STATUS}
+  ^\s+voice-vlan\s+${VOICE_VLANID} 
+  ^\s+poe\s*${POE_STATUS}
+  ^\s+port-security mac-address security sticky\s+${MAC}
+  ^\s+port link-aggregation group\s+${AGGID}
+  ^# -> Continue.Record

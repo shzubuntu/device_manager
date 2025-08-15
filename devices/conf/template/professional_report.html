@@ -1,0 +1,73 @@
+{# professional_report.html  #}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 新增SEO优化元素 -->
+    <meta name="description" content="{{ meta.report_id }} 设备巡检报告 - 生成于{{ meta.generated_time }}">
+    <!-- 新增元数据与样式链接 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- 静态资源路径处理 -->
+    <link rel="stylesheet" href="{{ static('css/report.css')  }}">
+
+    <!-- 动态样式控制 -->
+    <style>
+        .highlight { background-color: #ffeb3b; padding: 0.1em 0.3em; }
+        .report-table { border-collapse: collapse; width: 100%; }
+        .report-table th { background-color: #f5f7fa; }
+        .critical { color: #dc3545; }
+        .device-card:nth-child(odd) { background: #f8f9fa; }
+        @media print {
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 报告头 -->
+    <div style="text-align:center;margin-bottom:2rem">
+        <h1 class="report-title" style="margin:0 0 0.5rem">设备巡检报告</h1>
+        <div style="color:#666">
+            <span>生成时间: {{ meta.generated_time  }}</span>
+            <span style="margin:0 1rem">|</span>
+            <span>报告编号: {{ meta.report_id  }}</span>
+        </div>
+    </div>
+    <!-- 新增数据统计看板 -->
+    <div class="dashboard no-print">
+        <div class="stat-box">
+            <h3>执行概况</h3>
+            <p>设备总数: {{ statistics.device_count  }}</p>
+            <p>命令类型: {{ statistics.command_types  }} 种</p>
+        </div>
+        <div class="stat-box">
+            <h3>时间信息</h3>
+            <p>开始: {{ timing.start }}</p>
+            <p>结束: {{ timing.end }}</p>
+            <p>耗时: {{ timing.duration }}</p>
+        </div>
+    </div>
+ 
+    <!-- 增强设备结果展示 -->
+    {% for res in results %}
+    <div class="device-card">
+        <h2 data-device-id="{{ res.device }}">
+            {{ res.device  }}
+            <small class="text-muted">(最后执行: {{ res.timestamp  }})</small>
+        </h2>
+        
+        <div class="command-info">
+            <span class="badge bg-{{ 'success' if res.status=='success'  else 'danger' }}">
+                {{ res.status |upper }}
+            </span>
+            <code>{{ res.command }}</code>
+        </div>
+ 
+        <pre class="output-content" data-lines="{{ res.result  }}">
+            {{ res.result  }}
+        </pre>
+    </div>
+    {% endfor %}
+</body>
+</html>

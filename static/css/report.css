@@ -1,0 +1,45 @@
+/* report.css  */
+/* 基础重置 */
+.report-container {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 20px;
+}
+ 
+/* 表格增强样式 */
+.report-table {
+    border: 1px solid #e0e0e0;
+    margin: 1.5rem 0;
+}
+.report-table th {
+    background-color: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+}
+.report-table td {
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+ 
+/* 高亮交互效果 */
+.highlight {
+    background-color: #fff3cd;
+    transition: background-color 0.3s ease;
+    border-radius: 3px;
+}
+.highlight:hover {
+    background-color: #ffeeba;
+}
+ 
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .report-container {
+        padding: 10px;
+    }
+    .report-table {
+        font-size: 0.9em;
+    }
+}

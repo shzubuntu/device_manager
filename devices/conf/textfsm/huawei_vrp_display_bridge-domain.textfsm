@@ -1,0 +1,15 @@
+Value Filldown SYSNAME (\S+)
+Value Required BDNAME (\S+)
+Value VNI (\d+)
+Value RD (\S+)
+Value List VT_IN_E (\S+)
+Value List VT_OUT_E (\S+)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^bridge-domain\s+${BDNAME}
+  ^\s+vxlan vni\s+${VNI}
+  ^\s+route-distinguisher\s+${RD}
+  ^\s+vpn-target\s+${VT_IN_E}\s+import-extcommunity
+  ^\s+vpn-target\s+${VT_OUT_E}\s+export-extcommunity
+  ^# -> Continue.Record

@@ -1,0 +1,20 @@
+Value Required INTERFACE ((GigabitEthernet|Ten-GigabitEthernet|Vlan-interface|Bridge-Aggregation|Route-Aggregation)[\d\/]+)
+Value PHY (\S+)
+Value PROTOCOL (\S+)
+Value DESCRIPTION (.*)
+Value SPEED (.+)
+Value IP (\d+.\d+.\d+.\d+)
+Value TRANS ([^,]*)
+
+
+Start
+  ^${INTERFACE}
+  ^Current state:\s*${PHY}
+  ^Line protocol state:\s*${PROTOCOL}
+  ^Description:\s*${DESCRIPTION}
+  ^Bandwidth:\s*${SPEED}
+  ^Internet address:\s*${IP}
+  ^Media.*Port hardware type is\s*${TRANS}
+  ^Media.*port hardware type is\s*${TRANS}
+  ^port hardware type is\s*${TRANS}
+  ^\s*$$ -> Record

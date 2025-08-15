@@ -1,0 +1,20 @@
+Value Filldown SYSNAME (\S+)
+#Value VRF (\S+)
+Value Filldown VRF (\S+)
+Value Required DST_IP (\d+\.\d+\.\d+\.\d+)
+Value Required DST_MASK (\d+\.\d+\.\d+\.\d+)
+Value OUTIF (\S+)
+Value Required NEXT_HOP (\d+\.\d+\.\d+\.\d+)
+Value DESC (\S*)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^switch\s+vsys\s+${VRF}
+  ^ip route-static ${DST_IP} ${DST_MASK} ${NEXT_HOP}$$ -> Continue.Record
+  ^ip route-static ${DST_IP} ${DST_MASK} ${NEXT_HOP} description ${DESC}$$ -> Continue.Record
+  ^ip route-static ${DST_IP} ${DST_MASK} ${OUTIF} ${NEXT_HOP}$$ -> Continue.Record
+  ^ip route-static ${DST_IP} ${DST_MASK} ${OUTIF} ${NEXT_HOP} description ${DESC}$$ -> Continue.Record
+  ^ip route-static vpn-instance ${VRF} ${DST_IP} ${DST_MASK} ${NEXT_HOP}$$ -> Continue.Record
+  ^ip route-static vpn-instance ${VRF} ${DST_IP} ${DST_MASK} ${NEXT_HOP} description ${DESC}$$ -> Continue.Record
+  ^ip route-static vpn-instance ${VRF} ${DST_IP} ${DST_MASK} ${OUTIF} ${NEXT_HOP}$$ -> Continue.Record
+  ^ip route-static vpn-instance ${VRF} ${DST_IP} ${DST_MASK} ${OUTIF} ${NEXT_HOP} description ${DESC}$$ -> Continue.Record

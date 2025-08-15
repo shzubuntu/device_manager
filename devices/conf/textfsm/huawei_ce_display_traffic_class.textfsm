@@ -1,0 +1,7 @@
+Value Required TRAFFIC_CLASS (\S+)
+Value ACL_NAME (\S+)
+
+Start
+  ^traffic classifier\s+${TRAFFIC_CLASS}
+  ^\s+if-match acl\s+${ACL_NAME}
+  ^# -> Continue.Record

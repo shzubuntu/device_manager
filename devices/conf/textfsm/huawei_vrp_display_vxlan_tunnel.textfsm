@@ -1,0 +1,9 @@
+Value Tunnel_id (\d+)
+Value Tunnel_src (\d+\.\d+\.\d+\.\d+)
+Value Tunnel_dst (\d+\.\d+\.\d+\.\d+)
+Value State (\S+)
+Value Type (\S+)
+Value Uptime (\S+)
+
+Start
+  ^${Tunnel_id}\s+${Tunnel_src}\s+${Tunnel_dst}\s+${State}\s+${Type}\s+${Uptime}\s*$$ -> Record

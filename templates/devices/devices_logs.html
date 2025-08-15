@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>日志中心</h1>
+    <div class="mb-3">
+        <button class="btn btn-danger" id="deleteSelected">
+            <i class="fas fa-trash"></i> 批量删除
+        </button>
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="hostnameFilter" placeholder="主机名" onkeyup="filterLogs()">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="ipFilter" placeholder="IP" onkeyup="filterLogs()">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="log_typeFilter" placeholder="日志类型" onkeyup="filterLogs()">
+        </div>
+        <div class="col-md-3">
+            <input type="date" class="form-control" id="timesFilter" onchange="filterLogs()">
+        </div>
+    </div>
+    <table class="table mt-3" id="log_table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>主机名</th>
+                <th>IP</th>
+                <th>日志类型</th>
+                <th>日志文件</th>
+                <th>文件大小</th>
+                <th>时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="log_list">
+            <!-- 命令数据将通过 JavaScript 动态填充 -->
+        </tbody>
+    </table>
+</div>
+
+<!-- 模态框显示日志内容 -->
+<div class="modal fade" id="LogViewModal" tabindex="-1" role="dialog" aria-labelledby="logModalLabel" aria-hidden="true">
+    <div class="modal-dialog log-modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logModalLabel">日志内容</h5>
+            </div>
+            <div class="modal-body log-modal-body">
+                <pre id="logContent"></pre> <!-- 显示日志内容 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 自适应模态框宽度 */
+    .log-modal-dialog {
+        max-width: 80%;  /* 设置最大宽度为 80% */
+        width: auto;     /* 允许宽度自适应 */
+    }
+    .log-modal-body {
+        /*font-size: 12px;*/
+        background-color: #bbbdbf;
+        white-space: pre-wrap;  /* 保持文本格式 */
+        overflow-x: auto;       /* 允许横向滚动 */
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+let currentLogFile = null;
+
+// 加载日志列表
+async function loadLogs() {
+    try {
+        const response = await fetch('/devices/logs/');
+        if (!response.ok) throw new Error('获取日志列表失败');
+        const logs = await response.json();
+        $('#log_list').empty();
+        logs.forEach(log => {
+            $('#log_list').append(`
+                <tr>
+                    <td><input type="checkbox" class="log_checkbox" value="${log.index_dir}--${log.file_name}"></td>
+                    <td>${log.hostname}</td>
+                    <td>${log.ip}</td>
+                    <td>${log.log_type}</td>
+                    <td>${log.display_name}</td>
+                    <td>${log.log_file_size}</td>
+                    <td>${log.last_modified}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm viewLog" data-id="${log.index_dir}--${log.file_name}">查看</button>
+                        <button class="btn btn-danger btn-sm deleteLog" data-id="${log.index_dir}--${log.file_name}">删除</button>
+                        <button class="btn btn-success btn-sm downloadLog" data-id="${log.index_dir}--${log.file_name}">下载</button>
+                    </td>
+                </tr>
+            `);
+        });
+    } catch (error) {
+        console.error('加载日志列表失败:', error);
+    }
+}
+
+// 查看日志内容
+$(document).on('click', '.viewLog', function() {
+    const logfile = $(this).data('id');
+    $.get(`/devices/log_content/${logfile}/`, function(data) {
+        if (data && data.content) {
+            $('#logContent').text(data.content);
+            $('#LogViewModal').modal('show'); 
+        } else {
+            console.error("日志内容未找到或格式不正确:", data);
+        }
+    }).fail(function(jqXHR) {
+        console.error('查看日志时发生错误:', jqXHR);
+        if (jqXHR.status === 404) {
+            alert('日志文件未找到');
+        } else {
+            alert('发生错误，无法加载日志');
+        }
+    });
+});
+// 删除日志
+$(document).on('click', '.deleteLog', function() {
+    const logfile = $(this).data('id');
+    const csrfToken = getCookie('csrftoken');
+    $.ajax({
+        url: `/devices/logs/${logfile}/`,
+        type: 'DELETE',
+        headers: {
+            'X-CSRFToken': csrfToken
+        },
+        success: function(response) {
+            alert('日志文件删除成功');
+            loadLogs();
+        },
+    });
+});
+// 批量删除日志
+$('#deleteSelected').on('click', function() {
+    const selectedLogs = $('.log_checkbox:checked').map(function() {
+        return $(this).val();
+    }).get();
+    console.log("selectedLogs:", selectedLogs);
+    if (selectedLogs.length === 0) {
+        alert('请至少选择一个日志文件');
+        return;
+    }
+    if (confirm('确定要删除选中的日志文件吗？')) {
+        $.ajax({
+            url: '/devices/logs/',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                logs: selectedLogs,
+            }),
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                alert('日志文件删除成功');
+                loadLogs();
+            },
+        });
+    }
+});
+// 下载日志
+$(document).on('click', '.downloadLog', function() {
+    const logfile = $(this).data('id');
+    window.location.href = `/devices/log_download/${logfile}/`;
+});
+
+// 关键字过滤命令
+function filterLogs() {
+    const hostnameFilter = $('#hostnameFilter').val().toLowerCase();
+    const ipFilter = $('#ipFilter').val().toLowerCase();
+    const log_typeFilter = $('#log_typeFilter').val().toLowerCase();
+    const timesFilter = $('#timesFilter').val();
+
+    console.log("Filtering logs with:", hostnameFilter, ipFilter, log_typeFilter, timesFilter);  // 调试输出
+
+    $('#log_table tbody tr').filter(function() {
+        const hostnameMatch = $(this).find('td:nth-child(2)').text().toLowerCase().indexOf(hostnameFilter) > -1;
+        const ipMatch = $(this).find('td:nth-child(3)').text().toLowerCase().indexOf(ipFilter) > -1;
+        const log_typeMatch = $(this).find('td:nth-child(4)').text().toLowerCase().indexOf(log_typeFilter) > -1;
+        
+        // 时间过滤逻辑
+        let timesMatch = true;
+        if (timesFilter) {
+            const selectedDate = new Date(timesFilter);
+            const rowDateStr = $(this).find('td:nth-child(7)').text().split(' ')[0]; // 只取日期部分
+            const rowDate = new Date(rowDateStr);
+            // 比较日期是否相同
+            timesMatch = selectedDate.toDateString() === rowDate.toDateString();
+        }
+
+        // 只显示匹配的行
+        $(this).toggle(hostnameMatch && ipMatch && log_typeMatch && timesMatch);
+    });
+}
+
+
+// 选择所有命令
+//$('#selectAll').on('change', function() {
+//    $('.log_checkbox').prop('checked', this.checked);
+//});
+$('#selectAll').click(function() {
+    //$('input[type="checkbox"]').prop('checked', this.checked);
+    const isChecked = this.checked;  // 获取全选复选框的状态
+    // 只选择当前可见的设备行
+    $('#log_table tr:visible input[type="checkbox"]').prop('checked', isChecked);
+});
+
+// 监听单个复选框的变化事件
+$('#log_list').on('change', 'input[type="checkbox"]', function() {
+    const allCheckboxes = $('#log_list input[type="checkbox"]');
+    const checkedCheckboxes = allCheckboxes.filter(':checked');
+    // 如果所有单个复选框都被选中，则全选复选框也选中；否则取消选中
+    $('#selectAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+});
+
+// 页面加载时加载日志列表
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const deviceIp = urlParams.get('ip');
+    const deviceId = urlParams.get('device_id');
+    
+    if (deviceIp) {
+        document.getElementById('ipFilter').value = deviceIp;
+        // 先加载所有日志
+        loadLogs().then(() => {
+            // 加载完成后执行过滤
+            filterLogs();
+        });
+    } else {
+        // 如果没有IP参数，直接加载所有日志
+        loadLogs();
+    }
+    
+    // 每30秒刷新一次日志列表
+    setInterval(() => {
+        loadLogs().then(() => {
+            if (deviceIp) {
+                filterLogs();
+            }
+        });
+    }, 30000);
+});
+
+// 添加加载特定设备日志的函数
+async function loadDeviceLogs(deviceId) {
+    try {
+        const response = await fetch(`/devices/logs/?device_id=${deviceId}`);
+        if (!response.ok) throw new Error('获取设备日志失败');
+        const logs = await response.json();
+        $('#log_list').empty();
+        logs.forEach(log => {
+            $('#log_list').append(`
+                <tr>
+                    <td><input type="checkbox" class="log_checkbox" value="${log.index_dir}--${log.file_name}"></td>
+                    <td>${log.hostname}</td>
+                    <td>${log.ip}</td>
+                    <td>${log.log_type}</td>
+                    <td>${log.display_name}</td>
+                    <td>${log.log_file_size}</td>
+                    <td>${log.last_modified}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm viewLog" data-id="${log.index_dir}--${log.file_name}">查看</button>
+                        <button class="btn btn-danger btn-sm deleteLog" data-id="${log.index_dir}--${log.file_name}">删除</button>
+                        <button class="btn btn-success btn-sm downloadLog" data-id="${log.index_dir}--${log.file_name}">下载</button>
+                    </td>
+                </tr>
+            `);
+        });
+    } catch (error) {
+        console.error('加载设备日志失败:', error);
+        alert('加载设备日志失败，请检查控制台日志');
+    }
+}
+
+</script>
+{% endblock %} 

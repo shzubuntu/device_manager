@@ -1,0 +1,14 @@
+Value Filldown HOSTNAME (\S+)
+Value Required ADDR_NAME (\S+)
+Value ADDR_DESC (\S+)
+Value List ADDR_ID (\d+)
+Value List ADDR_TYPE (range|subnet)
+Value List ADDR_A (\S+)
+Value List ADDR_B (\S+)
+
+Start
+  ^\s+sysname\s*${HOSTNAME}
+  ^object-group ip address\s+${ADDR_NAME}
+  ^\s+description\s+${ADDR_DESC}
+  ^\s+${ADDR_ID}\s+network\s+${ADDR_TYPE}\s+${ADDR_A}\s+${ADDR_B}
+  ^# -> Record

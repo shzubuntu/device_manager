@@ -1,0 +1,22 @@
+#Value TUNNEL_ID (\d+)
+Value TUNNEL_NAME (Tunnel\d+)
+Value TUNNEL_STATUS (UP|DOWN|Administratively DOWN)
+Value PROTOCOL_STATUS (UP(\(spoofing\))?|DOWN)
+Value TUNNEL_DESCRIPTION (.*)
+Value TUNNEL_BANDWIDTH (.*)
+Value TUNNEL_MTU (.*)
+Value TUNNEL_SRC_IP (\d+.\d+.\d+.\d+)
+Value TUNNEL_DEST_IP (\d+.\d+.\d+.\d+)
+
+
+Start
+  ^${TUNNEL_NAME}
+  ^Current\s+state:\s+${TUNNEL_STATUS}
+  ^Line\s+protocol\s+state:\s+${PROTOCOL_STATUS}
+  ^Description:\s+${TUNNEL_DESCRIPTION}
+  ^Bandwidth:\s+${TUNNEL_BANDWIDTH}
+  ^Maximum\s+transmission\s+unit:\s+${TUNNEL_MTU}
+  ^Tunnel\s+source\s+${TUNNEL_SRC_IP},\s+destination\s+${TUNNEL_DEST_IP} -> Record
+  #^input\spackets\s:\s\d+,\sbytes\s:\s\d+,\smulticasts\s:\s\d+
+  #^output\spackets\s:\s\d+,\sbytes\s:\s\d+,\smulticasts\s:\s\d+
+  #^. -> Error

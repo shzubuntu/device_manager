@@ -1,0 +1,12 @@
+from ntc_templates.parse import parse_output
+
+os.environ['NTC_TEMPLATES_DIR'] = 'D:\BaiduSyncdisk\scripts\demos\python\templates'
+
+command = "display current"
+with open('display_current.conf','r') as f1: 
+       raw_config_text = f1.read()
+datas = parse_output(platform='hp_comware', command=command, data=raw_config_text)
+for data in datas:,
+       line = fname.split('.')[0]+' '+data['interface']+' '+data['mac']+' '+data['vlanid']+' '+ data['desc']
+       f.write(line)
+       f.write('\n')

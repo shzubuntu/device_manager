@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'xterm/xterm.css' %}">
+{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          {{ device.device_type }}-{{ device.name }}({{ device.ip_address }})   登录用户: 
+          <span  class="additional-text" style="margin-left: 8px; color: red;">{{ device.username}}</span>
+          <span id="ssh_id" class="additional-text" style="margin-left: 30px; color: blue;"></span>
+          <!--<a id="ssh_id" class="additional-text" style="margin-left: 30px; color: blue;">下载日志文件</a> -->
+          <div class="float-end">
+            <button id="fileTransferBtn" class="btn btn-sm btn-primary" onclick="openFileTransfer(event)" style="pointer-events: none; background-color: #e9ecef; color: #6c757d;" disabled>
+              文件传输
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <input type="hidden" id="device-id" value="{{ device.id }}">
+          <div id="terminal"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'xterm/xterm.css' %}">
+<script src="{% static 'xterm/xterm.min.js' %}"></script>
+<script src="{% static 'xterm/xterm-addon-web-links.min.js' %}"></script>
+<script src="{% static 'xterm/xterm-addon-fit.min.js' %}"></script>
+<script>
+  let currentWs = null;
+  let term = new Terminal();
+  const fitAddon = new window.FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal'));
+  fitAddon.fit();
+
+  // 窗口resize事件
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+  });
+
+  // 终端resize事件
+  term.onResize((size) => {
+    if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+      currentWs.send(JSON.stringify({
+        type: 'resize',
+        cols: size.cols,
+        rows: size.rows
+      }));
+    }
+  });
+  
+  // 连接设备
+  async function connectDevice() {
+    const deviceId = document.getElementById('device-id').value;
+
+    // 清理现有连接
+    if (currentWs) {
+      currentWs.onopen = null;
+      currentWs.onmessage = null;
+      currentWs.onclose = null;
+      currentWs.close();
+      currentWs = null;
+    }
+    
+    // 重新创建终端实例
+    term.dispose();
+    term = new window.Terminal();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+
+    // 建立WebSocket连接
+    currentWs = new WebSocket(`ws://${window.location.host}/ws/terminal_simple/${deviceId}/`);
+
+    currentWs.onopen = () => {
+      term.reset();
+      term.write(`Connecting to {{ device.name }} ({{ device.ip_address }})...\r\n`);
+      
+      // 发送认证信息
+      currentWs.send(JSON.stringify({
+        type: 'auth',
+        username: '{{ device.username }}',
+        password: '{{ device.password }}'
+      }));
+
+      // 设置文件传输按钮
+      const fileTransferBtn = document.getElementById('fileTransferBtn');
+      if (fileTransferBtn) {
+        fileTransferBtn.disabled = false;
+        fileTransferBtn.style.pointerEvents = 'auto';
+        fileTransferBtn.style.backgroundColor = '';
+        fileTransferBtn.style.color = '';
+        fileTransferBtn.classList.remove('btn-outline-secondary');
+        fileTransferBtn.classList.add('btn-primary');
+      }
+    };
+
+    currentWs.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'output' || data.type === 'security') {
+          term.write(data.data);
+        } else if (data.type === 'status' || data.type === 'error') {
+          term.write(data.message);
+          $('#ssh_id').text(data.sshid);
+        } else if (data.type === 'file') {
+          // 处理文件下载
+          const blob = new Blob([data.content], {type: 'application/octet-stream'});
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = data.filename;
+          link.click();
+        }
+      } catch (err) {
+        console.error('消息处理失败:', err);
+      }
+    };
+
+    // 终端输入处理
+    term.onData(data => {
+      if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+        currentWs.send(JSON.stringify({
+          type: 'input',
+          data: data
+        }));
+      }
+    });
+
+    currentWs.onclose = () => {
+      term.write('\r\nConnection closed\r\n');
+      const fileTransferBtn = document.getElementById('fileTransferBtn');
+      fileTransferBtn.disabled = true;
+      fileTransferBtn.style.backgroundColor = '#e9ecef';
+      fileTransferBtn.style.color = '#6c757d';
+      // 显示重连提示
+      term.write('\r\nAttempting to reconnect in 5 seconds...\r\n');
+      $('#ssh_id').text('会话已经断开');
+      
+      // 5秒后自动重连
+      setTimeout(() => {
+        connectDevice();
+      }, 5000);
+    };
+
+    // 连接错误处理
+    currentWs.onerror = (error) => {
+      term.write(`\r\nConnection error: ${error.message}\r\n`);
+    };
+  }
+
+  // 打开文件传输窗口
+  function openFileTransfer() {
+    const deviceId = document.getElementById('device-id').value;
+    if (!deviceId) {
+      alert('请先连接设备');
+      return;
+    }
+    
+    // 打开文件传输页面
+    window.open(`/sftp/${deviceId}/`, '_blank');
+  }
+
+  // 初始化连接
+  connectDevice();
+</script>
+{% endblock %}

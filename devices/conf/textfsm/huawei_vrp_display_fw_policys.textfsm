@@ -1,0 +1,38 @@
+Value Filldown SYSNAME (\S+)
+Value Filldown VRF (\S+)
+Value Filldown POLICY_TYPE (security|nat)
+Value Required RULE_NAME (\S+)
+Value SRC_ZONE (\S+)
+Value DST_ZONE (\S+)
+Value List SRC_IP_SETS (\S+)
+Value List SRC_IPS (\d+\.\d+\.\d+\.\d+)
+Value List SRC_MASKS (\d+\.\d+\.\d+\.\d+)
+Value List SRC_IP_START (\d+\.\d+\.\d+\.\d+)
+Value List SRC_IP_END (\d+\.\d+\.\d+\.\d+)
+Value List DST_IP_SETS (\S+)
+Value List DST_IPS (\d+\.\d+\.\d+\.\d+)
+Value List DST_MASKS (\d+\.\d+\.\d+\.\d+)
+Value List SERVICES (\S+)
+Value ACTION (\S+)
+
+Start
+  ^sysname\s+${SYSNAME} -> Policy
+
+Policy
+  ^switch\s+vsys\s+${VRF}
+  ^${POLICY_TYPE}-policy$$ -> Rule
+  ^return -> Policy
+
+Rule
+  ^\s+rule\s+name\s+${RULE_NAME}
+  ^\s+source-zone\s+${SRC_ZONE}
+  ^\s+destination-zone\s+${DST_ZONE}
+  ^\s+source-address\s+${SRC_IPS}\s+mask\s+${SRC_MASKS}
+  ^\s+source-address\s+${SRC_IPS}\s+mask\s+${SRC_MASKS}
+  ^\s+source-address address-set ${SRC_IP_SETS}
+  ^\s+destination-address address-set ${DST_IP_SETS}
+  ^\s+source-address\s+range\s+${SRC_IP_START}\s+${SRC_IP_END}
+  ^\s+destination-address\s+${DST_IPS}\s+mask\s+${DST_MASKS}
+  ^\s+service\s+${SERVICES}
+  ^\s+action\s+${ACTION} -> Record 
+  ^# -> Policy

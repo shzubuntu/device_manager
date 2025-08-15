@@ -1,0 +1,713 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">设备列表</h3>
+        </div>
+        
+        <div class="card-body">
+          <div class="mb-3">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+              <i class="fas fa-plus"></i> 添加设备
+            </button>
+            <button class="btn btn-danger" id="deleteSelected">
+              <i class="fas fa-trash"></i> 批量删除
+            </button>
+            <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importDeviceModal">
+              <i class="fas fa-file-import"></i> 批量导入
+            </button>
+            <button class="btn btn-warning" id="exportDeviceBtn" onclick="exportDevices()">
+              <i class="fas fa-file-export"></i> 批量导出
+            </button>
+            <button class="btn btn-secondary" onclick="updateAllDeviceStatus()">
+              <i class="fas fa-sync"></i> 更新状态
+            </button>
+          </div>
+          <!-- 搜索框 -->
+          <div class="row mb-3">
+            <div class="col-md-3">
+              <input type="text" class="form-control" id="nameFilter" placeholder="设备名称" onkeyup="filterDevices()">
+            </div>
+            <div class="col-md-3">
+              <input type="text" class="form-control" id="ipFilter" placeholder="IP地址" onkeyup="filterDevices()">
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" id="deviceTypeFilter" onchange="filterDevices()">
+                <option value="">所有设备类型</option>
+                <option value="server">服务器</option>
+                <option value="switch">交换机</option>
+                <option value="router">路由器</option>
+                <option value="firewall">防火墙</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" id="osTypeFilter" onchange="filterDevices()">
+                <option value="">所有操作系统类型</option>
+                <!-- 动态加载操作系统类型 -->
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" id="statusFilter" onchange="filterDevices()">
+                <option value="">所有状态</option>
+                <option value="online">在线</option>
+                <option value="offline">离线</option>
+              </select>
+            </div>
+          </div>
+          <!-- 设备列表 -->
+          <table class="table table-bordered table-hover">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>设备名称</th>
+                <th>IP地址</th>
+                <th>端口</th>
+                <th>用户名</th>
+                <th>设备类型</th>
+                <th>操作系统类型</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="deviceTableBody">
+              <!-- 设备列表将通过JavaScript动态加载 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增设备模态框 -->
+<div class="modal fade" id="addDeviceModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">新增设备</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addDeviceForm">
+          <div class="form-group">
+            <label>设备名称</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="os_type" class="form-label">操作系统类型</label>
+            <select class="form-control os_type" id="os_type" name="os_type" required>
+                <option value="">选择操作系统类型</option>
+                <!-- 动态加载操作系统类型 -->
+            </select>
+        </div>
+          <div class="form-group">
+            <label>IP地址</label>
+            <input type="text" name="ip_address" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>端口</label>
+            <input type="number" name="port" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>用户名</label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>密码</label>
+            <input type="password" name="password" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>设备类型</label>
+            <select name="device_type" class="form-control" required>
+              <option value="server">服务器</option>
+              <option value="switch">交换机</option>
+              <option value="router">路由器</option>
+              <option value="firewall">防火墙</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>连接协议</label>
+            <select name="protocol" class="form-control" required>
+              <option value="ssh">SSH</option>
+              <option value="serial">Serial</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="addDeviceBtn">保存</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑设备模态框 -->
+<div class="modal fade" id="editDeviceModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">编辑设备</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editDeviceForm">
+          <input type="hidden" name="id" id="editDeviceId">
+          <div class="form-group">
+            <label>设备名称</label>
+            <input type="text" name="name" id="editDeviceName" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>操作系统类型</label>
+            <input type="text" name="os_type" id="editDeviceOsType" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>IP地址</label>
+            <input type="text" name="ip_address" id="editDeviceIp" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>端口</label>
+            <input type="number" name="port" id="editDevicePort" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>用户名</label>
+            <input type="text" name="username" id="editDeviceUsername" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>密码</label>
+            <input type="password" name="password" id="editDevicePassword" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>设备类型</label>
+            <select name="device_type" id="editDeviceType" class="form-control" required>
+              <option value="server">服务器</option>
+              <option value="switch">交换机</option>
+              <option value="router">路由器</option>
+              <option value="firewall">防火墙</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>连接协议</label>
+            <select name="protocol" id="editDeviceProtocol" class="form-control" required>
+              <option value="ssh">SSH</option>
+              <option value="serial">Serial</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="saveDevice()">保存</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 批量导入设备模态框 -->
+<div class="modal fade" id="importDeviceModal" tabindex="-1" role="dialog" aria-labelledby="importDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importDeviceModalLabel">批量导入设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"> </button>
+            </div>
+            <div class="modal-body">
+                <form id="importDeviceForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="importFile">选择文件</label>
+                        <input type="file" class="form-control" id="importFile" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">导入</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="downloadTemplate()"> <i class="fas fa-file-download"></i> 下载模板
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 设备详情模态框 -->
+<div class="modal fade" id="deviceDetailsModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">设备详情</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <tbody>
+              <tr>
+                <th style="width: 30%">设备名称</th>
+                <td id="detailDeviceName"></td>
+              </tr>
+              <tr>
+                <th>IP地址</th>
+                <td id="detailDeviceIp"></td>
+              </tr>
+              <tr>
+                <th>端口</th>
+                <td id="detailDevicePort"></td>
+              </tr>
+              <tr>
+                <th>用户名</th>
+                <td id="detailDeviceUsername"></td>
+              </tr>
+              <tr>
+                <th>设备类型</th>
+                <td id="detailDeviceType"></td>
+              </tr>
+              <tr>
+                <th>连接协议</th>
+                <td id="detailDeviceProtocol"></td>
+              </tr>
+              <tr>
+                <th>操作系统类型</th>
+                <td id="detailDeviceOsType"></td>
+              </tr>
+              <tr>
+                <th>创建时间</th>
+                <td id="detailDeviceCreated"></td>
+              </tr>
+              <tr>
+                <th>最后修改</th>
+                <td id="detailDeviceUpdated"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+  loadDevices();
+  //updateAllDeviceStatus() 
+
+  $('#selectAll').click(function() {
+    //$('input[type="checkbox"]').prop('checked', this.checked);
+    const isChecked = this.checked;  // 获取全选复选框的状态
+    // 只选择当前可见的设备行
+    $('#deviceTableBody tr:visible input[type="checkbox"]').prop('checked', isChecked);
+  });
+
+  // 监听单个复选框的变化事件
+  $('#deviceTableBody').on('change', 'input[type="checkbox"]', function() {
+    const allCheckboxes = $('#deviceTableBody input[type="checkbox"]');
+    const checkedCheckboxes = allCheckboxes.filter(':checked');
+    // 如果所有单个复选框都被选中，则全选复选框也选中；否则取消选中
+    $('#selectAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+  });
+});
+// 加载设备列表
+function loadDevices(search = '') {
+  //console.log('Loading devices with search:', search);
+  $.ajax({
+    url: '/devices/',
+    type: 'GET',
+    data: { search: search },
+    success: function(response) {
+      $('#deviceTableBody').empty();
+      response.forEach(device => {
+        const row = `
+          <tr>
+            <td><input id='single-check' type="checkbox" class="device-checkbox" value="${device.id}"></td>
+            <td>${device.name}</td>
+            <td>${device.ip_address}</td>
+            <td>${device.port}</td>
+            <td>${device.username}</td>
+            <td><span class="badge bg-secondary">${device.device_type}</span></td>
+            <td>${device.os_type || '-'}</td>
+            <td id="status-${device.id}">${device.status || '-'}</td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="connectDevice(${device.id})">
+                <i class="fas fa-terminal"></i> 连接
+              </button>
+              <button class="btn btn-info btn-sm" onclick="viewLogs(${device.id})">
+                <i class="fas fa-file-alt"></i> 日志
+              </button>
+              <button class="btn btn-warning btn-sm" onclick="editDevice(${device.id})">
+                <i class="fas fa-edit"></i> 编辑
+              </button>
+              <button class="btn btn-danger btn-sm deleteDevice" data-id="${device.id}">
+                <i class="fas fa-info-circle"></i> 删除
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="viewDetails(${device.id})">
+                <i class="fas fa-info-circle"></i> 详情
+              </button>
+            </td>
+          </tr>
+        `;
+        $('#deviceTableBody').append(row);
+      });
+    },
+    error: function(xhr, status, error) {
+      console.error('Error loading devices:', error);
+      alert('加载设备列表失败，请检查控制台日志');
+    }
+  });
+  loadOsTypes()
+}
+// 加载操作系统类型
+function loadOsTypes() {
+   // 动态加载操作系统类型
+  $.ajax({
+      url: "/os_types/",
+      method: "GET",
+      success: function(data) {
+          var osTypeSelect = $('.os_type');
+          osTypeSelect.empty(); // 清空现有选项
+          osTypeSelect.append('<option value="">选择操作系统类型</option>'); // 添加默认选项
+          $.each(data, function(index, os_type) {
+              osTypeSelect.append('<option value="' + os_type.name + '">' + os_type.name + '</option>');
+          });
+
+          //填充过滤器
+          const osTypeSelect_filter = $('#osTypeFilter');
+            osTypeSelect_filter.empty(); // 清空现有选项
+            osTypeSelect_filter.append('<option value="">所有操作系统类型</option>'); // 添加默认选项
+            $.each(data, function(index, os_type) {
+                osTypeSelect_filter.append('<option value="' + os_type.name + '">' + os_type.name + '</option>');
+            });
+      },
+      error: function(xhr, status, error) {
+          console.error("获取操作系统类型失败:", error);
+      }
+  });
+}
+// 增加设备保存信息
+$(document).on('click', '#addDeviceBtn', function() {
+    const formData = $('#addDeviceForm').serialize();
+    const csrftoken = getCookie('csrftoken');
+    $.ajax({
+      url: '/devices/',
+      type: 'POST',
+      data: formData,
+      headers: {
+          'X-CSRFToken': csrftoken
+      },
+      success: function(response) {
+        $('#addDeviceModal').modal('hide');
+        alert("添加成功")
+        loadDevices();
+      },
+      error: function(error) {
+        alert('添加设备失败：' + error.responseJSON.message);
+      }
+    });
+});
+
+// 删除单个设备
+$(document).on('click', '.deleteDevice', function() {
+    const deviceId = $(this).data('id');
+    const csrftoken = getCookie('csrftoken');
+    $.ajax({
+        url: `/devices/${deviceId}/`,
+        type: 'DELETE',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        success: function() {
+            alert('设备删除成功');
+            loadDevices();
+        }
+    });
+});
+// 批量删除
+$('#deleteSelected').on('click', function() {
+    const selectedIds = $('.device-checkbox:checked').map(function() {
+        return $(this).val();
+    }).get();
+    const csrftoken = getCookie('csrftoken');
+    console.log('selectedIds',selectedIds);
+    if (selectedIds.length > 0) {
+        $.ajax({
+            url: '/devices/',
+            type: 'DELETE',
+            data: JSON.stringify({ ids: selectedIds }),
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            contentType: 'application/json',
+            success: function() {
+                alert('设备删除成功');
+                loadDevices();
+            }
+        });
+    } else {
+        alert('请先选择要删除的书籍');
+    }
+});
+// 连接设备
+function connectDevice(deviceId) {
+  //window.open(`/device/terminal/${deviceId}?device_id=${deviceId}`, '_blank');
+  window.open(`/device/terminal_simple/${deviceId}/`, '_blank');
+}
+// 查看日志
+function viewLogs(deviceId) {
+  const deviceIp = getDeviceIp(deviceId); // 获取设备IP
+  window.open(`/devices/log_center/?device_id=${deviceId}&ip=${deviceIp}`, '_blank');
+}
+
+function getDeviceIp(deviceId) {
+    let deviceIp = '';
+    $.ajax({
+        url: `/devices/${deviceId}/`,
+        type: 'GET',
+        async: false,
+        success: function(device) {
+            deviceIp = device.ip_address;
+        },
+        error: function(error) {
+            console.error('获取设备信息失败：', error);
+        }
+    });
+    return deviceIp;
+}
+// 显示编辑设备模态框
+function editDevice(deviceId) {
+  $.ajax({
+    url: `/devices/${deviceId}/`,
+    type: 'GET',
+    success: function(device) {
+      $('#editDeviceId').val(device.id);
+      $('#editDeviceName').val(device.name);
+      $('#editDeviceIp').val(device.ip_address);
+      $('#editDevicePort').val(device.port);
+      $('#editDeviceUsername').val(device.username);
+      $('#editDevicePassword').val(device.password);
+      $('#editDeviceType').val(device.device_type);
+      $('#editDeviceProtocol').val(device.protocol);
+      $('#editDeviceOsType').val(device.os_type);
+      $('#editDeviceModal').modal('show');
+    },
+    error: function(error) {
+      alert('获取设备信息失败：' + error.responseJSON.message);
+    }
+  });
+}
+// 保存设备
+function saveDevice() {
+  const deviceId = $('#editDeviceId').val();
+  const formData = $('#editDeviceForm').serialize();
+  
+  $.ajax({
+    url: `/devices/${deviceId}/`,
+    type: 'PUT',
+    headers: {
+        'X-CSRFToken': getCookie('csrftoken')
+    },
+    data: formData,
+    success: function(response) {
+      $('#editDeviceModal').modal('hide');
+      loadDevices();
+    },
+    error: function(error) {
+      let errorMessage = '更新设备失败';
+      try {
+        // 尝试解析响应为 JSON 格式
+        const responseJSON = JSON.parse(error.responseText);
+        if (responseJSON.message) {
+          errorMessage += '：' + responseJSON.message;
+        }
+      } catch (e) {
+        errorMessage += '：未知错误';
+      }
+      alert(errorMessage);
+    }
+  });
+}
+// 查看设备详情
+function viewDetails(deviceId) {
+  $.ajax({
+    url: `/devices/${deviceId}/`,
+    type: 'GET',
+    success: function(device) {
+      // 填充详情数据
+      $('#detailDeviceName').text(device.name || '-');
+      $('#detailDeviceIp').text(device.ip_address || '-');
+      $('#detailDevicePort').text(device.port || '-');
+      $('#detailDeviceUsername').text(device.username || '-');
+      $('#detailDeviceType').html(`<span class="badge bg-secondary">${device.device_type}</span>`);
+      $('#detailDeviceProtocol').text(device.protocol ? device.protocol.toUpperCase() : '-');
+      $('#detailDeviceOsType').text(device.os_type || '-');
+      
+      // 如果有创建和更新时间，格式化显示
+      if (device.created_at) {
+        $('#detailDeviceCreated').text(new Date(device.created_at).toLocaleString());
+      } else {
+        $('#detailDeviceCreated').text('-');
+      }
+      if (device.updated_at) {
+        $('#detailDeviceUpdated').text(new Date(device.updated_at).toLocaleString());
+      } else {
+        $('#detailDeviceUpdated').text('-');
+      }
+      
+      // 显示模态框
+      $('#deviceDetailsModal').modal('show');
+    },
+    error: function(error) {
+      let errorMessage = '获取设备详情失败';
+      try {
+        const responseJSON = JSON.parse(error.responseText);
+        if (responseJSON.message) {
+          errorMessage += '：' + responseJSON.message;
+        }
+      } catch (e) {
+        errorMessage += '：未知错误';
+      }
+      alert(errorMessage);
+    }
+  });
+}
+//导入设备
+$(document).on('submit', '#importDeviceForm', function(e) {
+        e.preventDefault();  // 防止默认提交
+
+        const fileInput = $('#importFile')[0];
+        if (fileInput.files.length === 0) {
+            alert('请选择要导入的文件');
+            return;
+        }
+
+        const formData = new FormData();  // 获取表单数据
+        formData.append('file', fileInput.files[0]);  // 添加文件到 FormData
+        const csrftoken = getCookie('csrftoken');
+
+
+        $.ajax({
+            url: '/api/devices/import/',  // 假设您将创建这个 API
+            type: 'POST',
+            data: formData,
+            processData: false,  // 不处理数据
+            contentType: false,  // 不设置内容类型
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                alert('设备导入成功！');
+                loadDevices();  // 刷新设备列表
+                $('#importDeviceModal').modal('hide');  // 关闭模态框
+            },
+            error: function(error) {
+                const errorMessage = error.responseJSON ? error.responseJSON.error : '未知错误';
+                alert('导入设备失败：' + errorMessage);
+            }
+        });
+    });
+// 导出设备
+function exportDevices() {
+        const selectedIds = [];
+        $('input[type="checkbox"]:checked').each(function() {
+            if (this.value) {
+                selectedIds.push(this.value);
+            }
+        });
+
+        if (selectedIds.length === 0) {
+            alert('请选择要导出的书籍');
+            return;
+        }
+
+        const json_string = JSON.stringify(selectedIds);
+        const csrftoken = getCookie('csrftoken');
+        console.log('导出设备json_string',json_string);
+
+        $.ajax({
+            url: '/devices/export/',  // 假设您将创建这个 API
+            type: 'POST',
+            data: { ids: json_string },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                // 直接下载文件
+                const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'devices.csv';
+                link.click();
+            },
+            error: function(error) {
+                alert('导出设备失败：' + error.responseJSON.message);
+            }
+        });
+    }
+
+function updateAllDeviceStatus() {
+    const selectedIds = [];
+    $('input[type="checkbox"]:checked').each(function() {
+        if (this.value) {
+            selectedIds.push(this.value);
+        }
+    });
+
+    if (selectedIds.length === 0) {
+        alert('请选择要更新的设备');
+        return;
+    }
+    $.ajax({
+        url: '/devices/update_status/',  // 假设您将创建这个 API
+        type: 'POST',
+        contentType: 'application/json',  // 设置内容类型为 JSON
+        data: JSON.stringify({ device_ids: selectedIds }),  // 将数据转换为 JSON 字符串
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')  // 确保 CSRF 令牌正确
+        },
+        success: function(response) {
+            alert('状态更新成功！');
+            loadDevices();  // 刷新设备列表
+        },
+        error: function(error) {
+            alert('更新设备状态失败：' + error.responseJSON.message);
+        }
+    });
+}
+function filterDevices() {
+    const nameFilter = document.getElementById('nameFilter').value.toLowerCase();
+    const deviceType = document.getElementById('deviceTypeFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const osTypeFilter = document.getElementById('osTypeFilter').value;
+    const ipFilter = document.getElementById('ipFilter').value;
+
+    // 遍历设备表格中的每一行
+    $('#deviceTableBody tr').filter(function() {
+        const deviceName = $(this).find('td:nth-child(2)').text().toLowerCase();  // 设备名称
+        const deviceStatus = $(this).find('td:nth-child(8)').text().toLowerCase();  // 设备状态
+        const deviceTypeValue = $(this).find('td:nth-child(6) .badge').text().toLowerCase();  // 设备类型
+        const osType = $(this).find('td:nth-child(7)').text().toLowerCase();  // 操作系统类型
+        const deviceIp = $(this).find('td:nth-child(3)').text().toLowerCase();  // 设备IP
+        // 根据过滤条件显示或隐藏行
+        $(this).toggle(
+            (nameFilter === "" || deviceName.includes(nameFilter)) &&
+            (deviceType === "" || deviceTypeValue.includes(deviceType)) &&
+            (status === "" || deviceStatus.includes(status)) &&
+            (osType === "" || osType.includes(osTypeFilter)) &&
+            (ipFilter === "" || deviceIp.includes(ipFilter))
+        );
+    });
+}
+
+function downloadTemplate() {
+    window.location.href = '/static/csv/devices_template.csv';  // 假设模板文件的路径
+}
+</script>
+{% endblock %}

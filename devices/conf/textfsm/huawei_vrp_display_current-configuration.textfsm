@@ -1,0 +1,35 @@
+Value Filldown SYSNAME (\S+)
+Value Required INTERFACE (\S+)
+Value DESC (.*)
+Value VRF (\S+)
+Value BDID (\d+)
+Value MLAGID (\d+)
+Value List NET (\S+ \S+)
+Value MAC (\S+)
+Value ACL (\S+)
+Value ACL_IO (\S+)
+Value VLANID (\d+)
+Value AGGID (\d+)
+Value TRAN (\S+)
+Value VRRPID (\d+)
+Value VIP (\S+)
+Value VRRP_STATUS (active|standby)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^interface\s*${INTERFACE}
+  ^\s+ip\s+binding\s+vpn-instance\s+${VRF}
+  ^\s+ip\s+address\s+${NET}
+  ^\s+traffic-policy\s+${ACL}\s+${ACL_IO}
+  ^\s+description\s*${DESC}
+  ^\s+port default vlan\s+${VLANID}
+  ^\s+port access vlan\s+${VLANID}
+  ^\s+device transceiver\s+${TRAN}
+  ^\s+encapsulation dot1q vid\s+${VLANID}
+  ^\s+bridge-domain\s+${BDID}
+  ^\s+vrrp\s+vrid\s+${VRRPID}\s+virtual-ip\s+${VIP}\s+${VRRP_STATUS}
+  ^\s+mac-address\s+${MAC}
+  ^\s+port link-aggregation group\s+${AGGID}
+  ^\s+dfs-group 1 m-lag\s+${MLAGID}
+  ^\s+eth-trunk\s+${AGGID}
+  ^# -> Continue.Record

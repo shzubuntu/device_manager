@@ -1,0 +1,14 @@
+Value Filldown HOSTNAME (\S+)
+Value Required SERVICE_NAME (\S+)
+Value SERVICE_DESC (\S+)
+Value List SERVICE_ID (\d+)
+Value List SERVICE_TYPE (\S+)
+Value List SERVICE_A (\S+)
+Value List SERVICE_B (\S+)
+
+Start
+  ^\s+sysname\s*${HOSTNAME}
+  ^object-group service\s+${SERVICE_NAME}
+  ^\s+description\s+${SERVICE_DESC}
+  ^\s+${SERVICE_ID}\s+service\s+${SERVICE_TYPE}\s+destination\s+range\s+${SERVICE_A}\s+${SERVICE_B}
+  ^# -> Record

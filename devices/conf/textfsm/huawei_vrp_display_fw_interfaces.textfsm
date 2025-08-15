@@ -1,0 +1,17 @@
+Value Filldown SYSNAME (\S+)
+Value Required INTERFACE (\S+)
+Value DESC (\S+)
+Value Required NET (\S+ \S+)
+Value VRF (\S+)
+#Value List NET (\S+ \S+)
+#Value VIP (\S+)
+#Value VRRP_STATUS (active|standby)
+
+Start
+  ^\s*sysname\s*${SYSNAME}
+  ^interface\s*${INTERFACE}
+  ^\s+ip\s+binding\s+vpn-instance\s+${VRF}
+  ^\s+ip\s+address\s+${NET}
+  ^\s+description\s*${DESC}
+  #^\s+vrrp\s+vrid\s+${VRRPID}\s+virtual-ip\s+${VIP}\s+${VRRP_STATUS}
+  ^# -> Continue.Record

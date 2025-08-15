@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* 核心视觉体系 */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+        }
+ 
+        /* 响应式布局系统 */
+        body {
+            font-family: 'Segoe UI', system-ui;
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            background: #f8f9fa;
+        }
+ 
+        /* 数据看板系统 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+ 
+        .stat-box {
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 1.5rem;
+        }
+ 
+        /* 设备卡片设计 */
+        .device-card {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+ 
+        .device-card:hover {
+            transform: translateY(-3px);
+        }
+ 
+        /* 状态徽章系统 */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+ 
+        .status-success { background: var(--success-color); color: white; }
+        .status-failure { background: var(--danger-color); color: white; }
+ 
+        /* 代码块展示优化 */
+        pre.output-content  {
+            /*background: #f8f9fa;*/
+            background: #eef0ec;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'SF Mono', monospace;
+            white-space: pre-wrap;
+        }
+ 
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+            .device-card { box-shadow: none; }
+        }
+        /* 表格系统 */
+        .data-table {
+            width: 100%;
+            border: 1px solid #ddd;
+            margin: 1rem 0;
+        }
+        .data-table th {
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .data-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <!-- 报告头 -->
+    <div style="text-align:center;margin-bottom:2rem">
+        <h1 class="report-title" style="margin:0 0 0.5rem">设备巡检报告</h1>
+        <div style="color:#666">
+            <span>生成时间: {{ meta.generated_time  }}</span>
+            <span style="margin:0 1rem">|</span>
+            <span>报告编号: {{ meta.report_id  }}</span>
+        </div>
+    </div>
+
+    
+
+    <!-- 数据看板 -->
+    <div class="dashboard no-print">
+        <div class="stat-box">
+            <h3 style="margin:0 0 1rem;color:var(--primary-color)">执行统计</h3>
+            <div style="display:grid;gap:0.5rem">
+                <div>
+                    <span style="color:#95a5a6">设备总数</span>
+                    <div style="font-size:1.5rem;color:var(--primary-color)">{{ statistics.device_count  }}</div>
+                </div>
+                <div>
+                    <span style="color:#95a5a6">命令总数</span>
+                    <div style="font-size:1.5rem;color:var(--primary-color)">{{ statistics.command_types  }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 时间线模块 -->
+        <div class="stat-box">
+            <h3 style="margin:0 0 1rem;color:var(--primary-color)">时间轨迹</h3>
+            <div style="position:relative;padding-left:1.5rem">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:#eee"></div>
+                <div style="margin-bottom:1.5rem">
+                    <div style="color:#2c3e50;font-weight:500">{{ timing.start  }}</div>
+                    <div style="color:#95a5a6;font-size:0.9em">开始执行</div>
+                </div>
+                <div>
+                    <div style="color:#2c3e50;font-weight:500">{{ timing.end  }}</div>
+                    <div style="color:#95a5a6;font-size:0.9em">完成执行</div>
+                </div>
+                <div>
+                    <div style="color:#2c3e50;font-weight:500">{{ timing.duration  }}</div>
+                    <div style="color:#95a5a6;font-size:0.9em">执行时长</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 环境模块 -->
+        <div class="stat-box">
+            <h3 style="margin:0 0 1rem;color:var(--primary-color)">运行环境</h3>
+            <div style="position:relative;padding-left:1.5rem">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:#eee"></div>
+                <div style="margin-bottom:1.5rem">
+                    <div style="color:#2c3e50;font-weight:500">{{ meta.system_metadata.platform.os  }}</div>
+                    <div style="color:#95a5a6;font-size:0.9em">操作系统信息</div>
+                </div>
+                <div>
+                    <div style="color:#2c3e50;font-weight:500">{{ meta.system_metadata.platform.python_version  }}</div>
+                    <div style="color:#95a5a6;font-size:0.9em">python版本</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备结果展示 -->
+     <!-- 执行结果概览 -->
+    <div class="dashboard no-print">
+        <div class="stat-box">
+            <h3 style="margin:1.5rem 0">命令执行统计</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>OS类型</th>
+                            <th>设备名称</th>
+                            <th>命令名称</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for res in content.os_commands %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ res.os_type }}</td>  
+                                <td>
+                                    {% for device in content.os_devices %}
+                                        {% if device.os_type == res.os_type %}
+                                            {% for device in device.devices %}
+                                                {% if device %}
+                                                    {{ device }}<br>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% for command in res.commands %}
+                                        {% if command %}
+                                            {{ command }}<br>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td> 
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>  
+        </div>
+    <!-- 执行结果概览 -->
+    <div class="dashboard no-print">
+    <div class="stat-box">
+        <h3 style="margin:1.5rem 0">命令执行总览</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>设备名称</th>
+                        <th>设备IP</th>
+                        <th>执行状态</th>
+                        <th>操作指令</th>
+                        <th>执行时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in results %}
+                        {% if res.command %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ res.device  }}</td>
+                            <td>{{ res.device_ip  }}</td>
+                            <td>
+                                <span class="result-indicator {{ 'success-indicator' if res.status=='success'  else 'failure-indicator' }}"></span>
+                                {{ res.status  | upper }}
+                            </td>
+                            <td><code>{{ res.command  }}</code></td>
+                            <td>{{ res.timestamp  }}</td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>  
+    </div>
+
+</div>
+    <!-- 设备结果展示 -->
+    <h3>命令执行详情</h3>
+    {% for res in results %}
+        {% if res.command %}
+        <div class="device-card">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+                <h2 style="margin:0;flex:1">{{ res.device  }}-{{ res.device_ip }}</h2>
+                <span class="status-badge status-{{ res.status  }}">
+                    {{ res.status  | upper }}
+                </span>
+            </div>
+            
+            <div style="margin-bottom:1rem">
+                <div style="display:flex;gap:0.5rem;align-items:center;color:#7f8c8d">
+                    <span>执行命令:</span>
+                    <code style="background:#f8f9fa;padding:0.25rem 0.5rem;border-radius:4px">{{ res.command  }}</code>
+                </div>
+                <div style="color:#95a5a6;font-size:0.9em;margin-top:0.5rem">
+                    最后执行: {{ res.timestamp  }}
+                </div>
+            </div>
+     
+            <pre class="output-content">{{ res.result  }}</pre>
+        </div>
+        {% endif %}
+    {% endfor %}
+</body>
+</html>

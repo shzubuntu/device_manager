@@ -1,0 +1,9 @@
+Value Required TRAFFIC_POLICY (\S+)
+Value TRAFFIC_CLASS (\S+)
+Value TRAFFIC_ACTION (\S+)
+Value PRIORITY (\S+)
+
+Start
+  ^traffic policy\s+${TRAFFIC_POLICY}
+  ^\s+classifier\s+${TRAFFIC_CLASS}\s+behavior\s+${TRAFFIC_ACTION}\s+precedence\s+${PRIORITY}
+  ^# -> Continue.Record

@@ -1,0 +1,34 @@
+Value Filldown SWITCHNAME (\S+)
+Value Required INTERFACE (\S+)
+Value VRF (\S+)
+Value List NET (\S+ \S+)
+Value List NET6 (\S+)
+Value List VSI (\S+)
+Value VLANID (\d+)
+Value VLANS (.*)
+Value VOICE_VLANID (\d+)
+Value POE_STATUS (\S+)
+Value DESC (\S+)
+Value MAC (\S+)
+Value AGGID (\d+)
+Value VRRPID (\d+)
+Value VIP (\S+ \S+)
+Value VRRP_STATUS (active|standby)
+
+Start
+  ^\s+sysname\s*${SWITCHNAME}
+  ^interface\s*${INTERFACE}
+  ^\s+ip\s+binding\s+vpn-instance\s+${VRF}
+  ^\s+ip\s+address\s+${NET}\s*
+  ^\s+ipv6\s+address\s+${NET6}\s*
+  ^\s+vrrp vrid\s+${VRRPID}\s+virtual-ip\s+${VIP}\s+${VRRP_STATUS}
+  ^\s+xconnect\s+vsi\s+${VSI}
+  ^\s+description\s*${DESC}
+  ^\s+port hybrid pvid vlan\s+${VLANID}
+  ^\s+port access vlan\s+${VLANID}
+  ^\s+port trunk permit vlan\s+${VLANS}
+  ^\s+voice-vlan\s+${VOICE_VLANID} 
+  ^\s+poe\s*${POE_STATUS}
+  ^\s+port-security mac-address security sticky\s+${MAC}
+  ^\s+port link-aggregation group\s+${AGGID}
+  ^# -> Continue.Record

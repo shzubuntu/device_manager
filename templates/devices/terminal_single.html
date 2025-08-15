@@ -1,0 +1,680 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'xterm/xterm.css' %}">
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <!-- <h4 class="card-title">设备控制台</h4> -->
+                    <h4 class="card-title">独立设备控制台  <span id="session-id-text" style=" font-size: 0.8em; margin-left: 10px;color: blue;" class="small-text"></span> <span id="session-id-display" style=" font-size: 0.8em; margin-left: 10px;color: blue;" class="small-text"></span>
+                    
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                       
+                        <div class="col-md-2">
+                            <select class="form-select" id="deviceType">
+                                <option value="switch">交换机</option>
+                                <option value="server">服务器</option>
+                                <option value="firewall">防火墙</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" class="form-control" id="ip" placeholder="IP地址">
+                            <input type="hidden" id="device_id">
+                            <input type="hidden" id="logfilename">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" class="form-control" id="username" placeholder="用户名">
+                        </div>
+                        <div class="col-md-2">
+                            <input type="password" class="form-control" id="password" placeholder="密码">
+                        </div>
+                        <div class="col-md-1">
+                            <input type="number" class="form-control" id="port" value="22">
+                        </div>
+                        <div class="col-md-1">
+                            <select class="form-select" id="deviceProtocol">
+                                <option value="ssh">SSH</option>
+                                <option value="telnet">Telnet</option>
+                                <option value="serial">串口</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="serialSettings" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <select class="form-select" id="serialPort">
+                                        <option value="">选择串口</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="baudRate">
+                                        <option value="9600">9600</option>
+                                        <option value="19200">19200</option>
+                                        <option value="38400">38400</option>
+                                        <option value="57600">57600</option>
+                                        <option value="115200">115200</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" id="dataBits">
+                                        <option value="8">8位</option>
+                                        <option value="7">7位</option>
+                                        <option value="6">6位</option>
+                                        <option value="5">5位</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="parity">
+                                        <option value="N">无校验</option>
+                                        <option value="E">偶校验</option>
+                                        <option value="O">奇校验</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-primary" id="connectBtn"  onclick="connectDevice()">连接</button>
+                            <!--<button class="btn btn-warning" id="sftpBtn" disabled>打开SFTP</button>-->
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-2" style="display: inline-block; margin-bottom: 5px;">
+                            <label for="fontFamilySelect" >字体</label>
+                            <select class="form-select" id="fontFamilySelect">
+                                <option value="Courier New, monospace">Courier New</option>
+                                <option value="Times New Roman, serif">Consolas</option>
+                                <option value="Times New Roman, serif">Menlo</option>
+                                <option value="Times New Roman, serif">monospace</option>
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="Times New Roman, serif">Times New Roman</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2" style="display: inline-block; margin-bottom: 5px;">
+                            <label for="fontSizeSelect" >大小</label>
+                            <select class="form-select" id="fontSizeSelect">
+                                <option value="12">12px</option>
+                                <option value="14">14px</option>
+                                <option value="16">16px</option>
+                                <option value="18">18px</option>
+                                <option value="20">20px</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="log-switch" checked>
+                                <label class="form-check-label" for="log-switch">启用日志记录</label>
+                            </div>
+                        </div>
+                         <!-- 新增"选择已有设备"按钮 -->
+                         <div class="col-md-2">
+                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#deviceModal">选择已有设备</button>
+                        </div>
+                        <div class="col-md-2">
+                            <button id="disconnect-btn" class="btn btn-danger btn-sm" style="display: none;" onclick="disconnectDevice()">
+                                <i class="fas fa-power-off"></i> 断开连接
+                            </button>
+                        </div>
+
+                        <div class="col-md-2">
+                            <button id="download-logs-btn" class="btn btn-info btn-sm me-2" style="display: none;">
+                                <i class="fas fa-download"></i> 下载会话日志
+                            </button>
+                        </div>
+                    </div>
+                    <!-- <div id="terminal"></div>
+                    <div id="terminal" style="height: 800px; background-color: black; padding: 10px;"></div> -->
+                    <div id="terminal" style="background-color: black; padding: 10px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 模态框 -->
+<div class="modal fade" id="deviceModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deviceModalLabel">选择已有设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group" id="deviceList" role="list">
+                    <!-- 设备列表将通过 JavaScript 动态填充 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<!-- 静态加载 xterm 相关的 JavaScript 文件 -->
+<script src="{% static 'xterm/xterm.min.js' %}"></script>
+<script src="{% static 'xterm/xterm-addon-web-links.min.js' %}"></script>
+<script src="{% static 'xterm/xterm-addon-fit.min.js' %}"></script>
+<script>
+    //创建socket 全局变量
+    let socket = null; 
+    //创建terminal全局变量
+    let terminal = new window.Terminal({
+        cursorBlink: true,
+        theme: {
+            background: '#000000', //背景黑色
+            foreground: '#ffffff', //前景白色
+            //background: '#1e1e1e', // 自定义背景色
+            //foreground: '#d4d4d4', // 自定义前景色
+            cursor: '#aeafad',     // 自定义光标颜色
+            selection: '#3a3d41'   // 自定义选中区域颜色
+        },
+        fontSize: 16, //自定义字体大小
+        //fontFamily: 'Courier New, monospace', //自定义字体
+    });
+    const fitAddon = new window.FitAddon.FitAddon();
+    terminal.loadAddon(fitAddon);
+    terminal.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    terminal.write('等待连接...')//显示"等待连接，请输入设备相关信息后进行连接
+
+
+    // 监听字体家族和字体大小下拉框的 change 事件
+    const fontFamilySelect = document.getElementById('fontFamilySelect');
+    fontFamilySelect.addEventListener('change', () => {
+        const newFontFamily = fontFamilySelect.value;
+        terminal.options.fontFamily = newFontFamily;
+        terminal._core._renderService.refresh();
+        
+    });
+    // 监听字体大小下拉框的 change 事件
+    const fontSizeSelect = document.getElementById('fontSizeSelect');
+    fontSizeSelect.addEventListener('change', () => {
+        const newfontSize = parseInt(fontSizeSelect.value);
+        terminal.options.fontSize = newfontSize;
+        terminal._core._renderService.refresh();
+    });
+
+    // 修改协议切换处理函数
+    document.getElementById('deviceProtocol').addEventListener('change', function() {
+        const protocol = this.value;
+        const serialSettings = document.getElementById('serialSettings');
+        const normalSettings = document.querySelectorAll('.col-md-2, .col-md-1');
+        //const sftpBtn = document.getElementById('sftpBtn');
+        
+        if (protocol === 'serial') {
+            // 显示串口设置，隐藏普通设置
+            serialSettings.style.display = 'block';
+            normalSettings.forEach(el => {
+                if (el.querySelector('#ip, #username, #password, #port') || 
+                    el.querySelector('input[type="text"], input[type="password"], input[type="number"]')) {
+                    el.style.display = 'none';
+                }
+            });
+            // 禁用 SFTP 按钮
+            //sftpBtn.disabled = true;
+            // 立即获取串口列表
+            fetchSerialPorts();
+        } else {
+            // 显示普通设置，隐藏串口设置
+            serialSettings.style.display = 'none';
+            normalSettings.forEach(el => {
+                if (el.querySelector('#ip, #username, #password, #port') || 
+                    el.querySelector('input[type="text"], input[type="password"], input[type="number"]')) {
+                    el.style.display = 'block';
+                }
+            });
+            // 只有在 SSH 协议下启用 SFTP 按钮
+            //sftpBtn.disabled = (protocol !== 'ssh');
+            stopSerialPortRefresh();
+        }
+    });
+
+    // 修改刷新串口列表的函数
+    async function fetchSerialPorts() {
+        try {
+            const response = await fetch('/api/get_serial_ports/');
+            if (!response.ok) {
+                throw new Error('获取串口列表失败');
+            }
+            const serialPorts = await response.json();
+            const serialPortSelect = document.getElementById('serialPort');
+            serialPortSelect.innerHTML = ''; // 添加默认选项
+            
+            if (serialPorts && serialPorts.length > 0) {
+                serialPorts.forEach(port => {
+                    const option = document.createElement('option');
+                    option.value = port;
+                    option.textContent = port;
+                    serialPortSelect.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "未检测到可用串口";
+                option.disabled = true;
+                serialPortSelect.appendChild(option);
+            }
+        } catch (error) {
+            console.error('获取串口列表出错:', error);
+            const serialPortSelect = document.getElementById('serialPort');
+            serialPortSelect.innerHTML = '<option value="">获取串口列表失败</option>';
+        }
+    }
+
+    // 移除之前的协议切换事件监听器（避免重复）
+    document.getElementById('deviceProtocol').removeEventListener('change', startSerialPortRefresh);
+    document.getElementById('deviceProtocol').removeEventListener('change', stopSerialPortRefresh);
+
+    // 添加定期刷新串口列表的功能
+    let serialPortRefreshInterval;
+
+    function startSerialPortRefresh() {
+        // 每5秒刷新一次串口列表
+        serialPortRefreshInterval = setInterval(fetchSerialPorts, 5000);
+    }
+
+    function stopSerialPortRefresh() {
+        if (serialPortRefreshInterval) {
+            clearInterval(serialPortRefreshInterval);
+            serialPortRefreshInterval = null;
+        }
+    }
+
+    // 创建连接socket函数
+    async function connectDevice(){
+        stopSerialPortRefresh();
+        // 清理现有连接
+        if (socket){
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.close();
+            socket = null;
+        }
+        //重新创建终端实例
+        terminal.dispose();
+        terminal = new window.Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000000',
+                foreground: '#ffffff',
+                cursor: '#aeafad',
+                selection: '#3a3d41'
+            },
+            fontSize: 16,
+        });
+        terminal.loadAddon(fitAddon);
+        terminal.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        terminal.write('等待连接...')
+
+        //创建新的socket连接
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = `${wsProtocol}${window.location.host}/ws/terminal_single/`;
+        socket = new WebSocket(wsUrl);
+        
+        //当socket建立连接时发送认证信息
+        socket.onopen = function() {
+            console.log('WebSocket connection established');
+            terminal.attachCustomKeyEventHandler(() => true);
+            const terminalElement = document.getElementById('terminal');
+            terminalElement.style.opacity = '1';
+            document.getElementById('download-logs-btn').style.display = 'none';
+            
+            // 禁用"选择已有设备"按钮
+            document.querySelector('[data-bs-toggle="modal"]').disabled = true;
+
+            // 根据协议类型发送不同的认证数据
+            const protocol = document.getElementById('deviceProtocol').value;
+            let authData;
+
+            if (protocol === 'serial') {
+                authData = {
+                    type: 'auth',
+                    protocol: 'serial',
+                    port: document.getElementById('serialPort').value,
+                    baudRate: parseInt(document.getElementById('baudRate').value),
+                    dataBits: parseInt(document.getElementById('dataBits').value),
+                    parity: document.getElementById('parity').value,
+                    device_type: document.getElementById('deviceType').value
+                };
+                // 确保 SFTP 按钮在串口模式下禁用
+                //document.getElementById('sftpBtn').disabled = true;
+            } else {
+                const deviceId = document.getElementById('device_id').value;
+                if(!document.getElementById('username').value){
+                    alert('请输入用户名');
+                    return;
+                }
+                if(!document.getElementById('password').value){
+                    alert('请输入密码');
+                    return;
+                }
+                if(!document.getElementById('port').value){
+                    alert('请输入端口');
+                    return;
+                }
+                if(!document.getElementById('ip').value){
+                    alert('请输入IP地址');
+                    return;
+                }
+                //如果deviceId为空，则使用普通认证方式 ，表示是临时连接,用户名、密码、端口、设备类型、协议使用当前输入框的值，且不能为空
+                authData = {
+                    type: 'auth',
+                    device_id: deviceId,
+                    protocol: protocol,
+                    ip_address: document.getElementById('ip').value,
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value,
+                    port: document.getElementById('port').value,
+                    device_type: document.getElementById('deviceType').value
+                };
+                // 只在 SSH 协议下启用 SFTP 按钮
+                //document.getElementById('sftpBtn').disabled = (protocol !== 'ssh');
+            }
+            socket.send(JSON.stringify(authData));
+        };
+
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            terminal.write('\r\nWebSocket connection error\r\n');
+        };
+
+        socket.onclose = function() {
+            disconnectDevice()
+        };
+
+        // WebSocket message handling
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            if (data.type === 'output' || data.type =='security') {
+                terminal.write(data.data);
+            } else if (data.type === 'error') {
+                if (socket){
+                    socket.onopen = null;
+                    socket.onmessage = null;
+                    socket.onclose = null;
+                    socket.close();
+                    socket = null;
+                    terminal.reset(); // 清除终端内容
+                    terminal.write('链接失败\r\nError: ' + data.message + '\r\n');
+                }
+            }else if (data.type === 'status') {
+                if (data.message === 'SSH_CONNECTED') {
+                    terminal.reset(); // 清除终端内容
+                    //显示连接成功信息
+                    terminal.write('Connect successfully...\r\n');
+                    //$('#device_id').text(data.device_id);
+                    const deviceIdInput = document.getElementById('device_id');
+                    // 设置输入框的值
+                    deviceIdInput.value = data.device_id;
+                    //设置会话ID
+                    const sessionId = data.info;
+                    const sessionIdDisplay = document.getElementById('session-id-display');
+                    sessionIdDisplay.textContent = `${sessionId}`;
+                    const sessionIdText = document.getElementById('session-id-text');
+                    sessionIdText.textContent = `会话id:`;
+                    
+                    // 接收后台传递的日志文件名称
+                    if (data.logfilename) {
+                        const deviceIdInput = document.getElementById('logfilename');
+                        // 设置输入框的值
+                        deviceIdInput.value = data.logfilename;
+                    }
+                    // 可以打印出来验证是否设置成功
+                    //设置sftp按钮为可点击
+                    //document.getElementById('sftpBtn').disabled = false;
+                    //设置断开连接按钮为可见
+                    document.getElementById('disconnect-btn').style.display = 'block';
+                    document.getElementById('disconnect-btn').disabled = false;
+                    //隐藏连接按钮
+                    document.getElementById('connectBtn').disabled = true;
+                    //将输入框设置为只读
+                    document.getElementById('deviceType').disabled = true;
+                    document.getElementById('ip').readOnly = true;
+                    document.getElementById('username').readOnly = true;
+                    document.getElementById('password').readOnly = true;
+                    document.getElementById('port').readOnly = true;
+                    document.getElementById('deviceProtocol').disabled = true;
+                }else if(data.message === 'SSH_CLOSED'){
+                    disconnectDevice();
+                }
+            }
+        };
+        // 终端输入处理
+        terminal.onData(data => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'input',
+                    data: data
+                }));
+            }
+        });
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+        });
+        
+        //监听下载日志按钮
+        document.getElementById('download-logs-btn').addEventListener('click', async() => {
+            const log_type = 'logs';
+            const logfile = document.getElementById('logfilename').value;
+            window.location.href = `/devices/log_download/${log_type}--${logfile}/`;
+        });
+         // 监听打开SFTP按钮
+        //document.getElementById('sftpBtn').addEventListener('click', () => {
+        //    deviceId = document.getElementById('device_id').value
+        //    if (!deviceId) {
+        //        //alert('请先连接设备');
+        //        //return;
+        //        deviceId = 999999
+        //    }
+        //    // 打开文件传输页面
+        //    window.open(`/sftp/${deviceId}`, '_blank');
+        //    //需要打开独立的SFTP页面，并传递登录信息
+        //});
+
+    }
+    
+    //创建关闭socket函数
+    async function disconnectDevice(){
+        //显示下载日志的按钮
+        if (document.getElementById('log-switch').checked) {
+            document.getElementById('download-logs-btn').style.display = 'block';
+        }
+
+        if (socket){
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.close();
+            socket = null;
+        }
+        //清楚控制台上放的会话ID信息
+        const sessionIdDisplay = document.getElementById('session-id-display');
+        sessionIdDisplay.textContent = '';
+        const sessionIdText = document.getElementById('session-id-text');
+        sessionIdText.textContent = '';
+        
+        //document.getElementById('download-logs-btn').style.display = 'block';
+        //显示连接按钮
+        document.getElementById('connectBtn').disabled = false;
+        //将输入框设置为可编辑
+        document.getElementById('deviceType').disabled = false;
+        document.getElementById('ip').readOnly = false;
+        document.getElementById('username').readOnly = false;
+        document.getElementById('password').readOnly = false;
+        document.getElementById('port').readOnly = false;
+        document.getElementById('deviceProtocol').disabled = false;
+
+        //禁用断开连接按钮
+        document.getElementById('disconnect-btn').disabled = true;
+        //禁用SFTP按钮
+        //document.getElementById('sftpBtn').disabled = true;
+        //清空终端显示信息
+        terminal.reset();
+        console.log("连接已断开,等待新的连接...");
+        terminal.write('连接已断开,等待新的连接...');
+
+        const protocol = document.getElementById('deviceProtocol').value;
+        if (protocol === 'serial') {
+            startSerialPortRefresh();
+        }
+
+        // 启用"选择已有设备"按钮
+        document.querySelector('[data-bs-toggle="modal"]').disabled = false;
+    }
+    // 获取设备列表的示例函数，这里假设通过 AJAX 请求获取设备列表
+    async function getDeviceList() {
+        try {
+            const response = await fetch('/devices/');
+            if (!response.ok) {
+                throw new Error('获取设备列表失败');
+            }
+            const devices = await response.json();
+            return devices;
+        } catch (error) {
+            console.error('获取设备列表出错:', error);
+            return [];
+        }
+    }
+
+    // 填充设备列表到模态框
+    async function populateDeviceList() {
+        const deviceList = document.getElementById('deviceList');
+        const devices = await getDeviceList();
+        deviceList.innerHTML = '';
+        devices.forEach(device => {
+            const listItem = document.createElement('button');
+            listItem.classList.add('list-group-item', 'list-group-item-action', 'd-flex', 'justify-content-between', 'align-items-center');
+            listItem.setAttribute('role', 'listitem');
+            listItem.setAttribute('type', 'button');
+            
+            // 创建设备信息容器
+            const deviceInfo = document.createElement('div');
+            deviceInfo.innerHTML = `
+                <strong>${device.name}</strong>
+                <span class="badge bg-secondary ms-2">${getDeviceTypeName(device.device_type)}</span>
+                <small class="text-muted ms-2">${device.ip_address}</small>
+            `;
+            
+            listItem.appendChild(deviceInfo);
+            
+            // 设置设备数据
+            listItem.dataset.deviceId = device.id;
+            listItem.dataset.ip = device.ip_address;
+            listItem.dataset.username = device.username;
+            listItem.dataset.password = device.password;
+            listItem.dataset.port = device.port;
+            listItem.dataset.deviceType = device.device_type;
+            
+            listItem.addEventListener('click', () => {
+                selectDevice(device);
+            });
+            
+            deviceList.appendChild(listItem);
+        });
+    }
+
+    // 添加设备类型名称转换函数
+    function getDeviceTypeName(deviceType) {
+        const typeMap = {
+            'server': '服务器',
+            'switch': '交换机',
+            'firewall': '防火墙',
+        };
+        return typeMap[deviceType] || deviceType;
+    }
+
+    // 修改 selectDevice 函数
+    function selectDevice(device) {
+        document.getElementById('device_id').value = device.id;
+        console.log('device_id',device.id)
+        document.getElementById('ip').value = device.ip_address;
+        document.getElementById('username').value = device.username;
+        document.getElementById('password').value = device.password;
+        document.getElementById('port').value = device.port;
+        dbDeviceTypeValue = device.device_type;
+        const deviceTypeSelect = document.getElementById('deviceType');
+        
+        for (let i = 0; i < deviceTypeSelect.options.length; i++) {
+            const option = deviceTypeSelect.options[i];
+            if (option.value === dbDeviceTypeValue) {
+                option.selected = true;
+                break;
+            }
+        }
+
+        const connectBtn = document.getElementById('connectBtn');
+        const deviceModal = document.getElementById('deviceModal');
+        const modal = bootstrap.Modal.getInstance(deviceModal);
+        
+        // 关闭模态框
+        modal.hide();
+        
+        // 等待模态框完全关闭后执行清理
+        deviceModal.addEventListener('hidden.bs.modal', function handler() {
+            // 移除模态框背景
+            const modalBackdrops = document.getElementsByClassName('modal-backdrop');
+            while (modalBackdrops.length > 0) {
+                modalBackdrops[0].remove();
+            }
+            
+            // 恢复页面滚动
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            document.body.classList.remove('modal-open');
+            
+            // 设置焦点
+            connectBtn.focus();
+            
+            // 移除事件监听器
+            deviceModal.removeEventListener('hidden.bs.modal', handler);
+        });
+    }
+
+    // 修改模态框事件监听器
+    document.addEventListener('DOMContentLoaded', function() {
+        const deviceModal = document.getElementById('deviceModal');
+        
+        // 模态框打开时的处理
+        deviceModal.addEventListener('show.bs.modal', function() {
+            populateDeviceList();
+        });
+
+        // 模态框关闭时的处理
+        deviceModal.addEventListener('hide.bs.modal', function() {
+            const deviceList = document.getElementById('deviceList');
+            deviceList.innerHTML = '';
+        });
+
+        // 修改关闭按钮的事件处理
+        const closeButton = deviceModal.querySelector('[data-bs-dismiss="modal"]');
+        closeButton.addEventListener('click', function() {
+            // 移除模态框背景
+            const modalBackdrops = document.getElementsByClassName('modal-backdrop');
+            while (modalBackdrops.length > 0) {
+                modalBackdrops[0].remove();
+            }
+            
+            // 恢复页面滚动
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            document.body.classList.remove('modal-open');
+        });
+    });
+
+    // 在页面加载时填充设备列表
+    window.addEventListener('load', () => {
+        populateDeviceList();
+    });
+</script>
+{% endblock %}

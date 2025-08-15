@@ -1,0 +1,23 @@
+Value Filldown HOSTNAME (\S+)
+Value Required INTERFACE (\S+)
+Value VRF (\S+)
+Value NET (\d+\.\d+\.\d+\.\d+\/\d+)
+Value VLANID (\d+)
+Value VOICE_VLANID (\d+)
+Value POE_STATUS (\S+)
+Value DESC (\S+)
+Value MAC (\S+)
+Value Media_type (\S+)
+
+Start
+  ^hostname\s*${HOSTNAME}
+  ^interface\s+${INTERFACE}
+  ^\s+description\s*${DESC}
+  ^\s+vrf member\s*${VRF}$$
+  ^\s+ip vrf forwarding\s*${VRF}$$
+  ^\s+ip\s+address\s+${NET}$$
+  ^\s+switchport access vlan\s+${VLANID}
+  ^\s+poe\s*${POE_STATUS}
+  ^\s+switchport port-security mac-address sticky\s+${MAC}
+  ^\s+media-type\s+${Media_type}$$
+  ^\s*$$ -> Continue.Record

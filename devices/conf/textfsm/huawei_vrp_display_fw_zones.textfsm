@@ -1,0 +1,17 @@
+Value Filldown SYSNAME (\S+)
+Value Filldown VRF (\S+)
+Value Required ZONE_NAME (\S+)
+Value List INTNAME (\S+)
+Value PRIORITY (\d+)
+
+Start
+  ^sysname\s+${SYSNAME}
+  ^switch\s+vsys\s+${VRF}
+  ^firewall zone\s+name\s+${ZONE_NAME}\s+id\s+\d+$$ -> Continue
+  ^firewall zone\s+name\s+${ZONE_NAME}$$ -> Continue
+  ^firewall zone\s+${ZONE_NAME}$$ -> Continue
+  ^\s+set priority\s+${PRIORITY}
+  ^\s+add\s+interface\s+${INTNAME} -> Continue
+  ^# -> Record
+  ^return -> Start
+

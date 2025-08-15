@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">串口设备控制台 <span id="session-id-text" style=" font-size: 0.8em; margin-left: 10px;color: blue;" class="small-text"></span> <span id="session-id-display" style=" font-size: 0.8em; margin-left: 10px;color: blue;" class="small-text"></span>
+                    </h4>
+                </div>
+                <div class="card-body">
+                 <!-- 新增串口选择下拉列表和刷新按钮 -->
+                    <div class="row mb-12">
+                        <div class="col-md-1 d-flex align-items-center">
+                            <label for="serialPortSelect">串口:</label>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center">
+                            <select class="form-select flex-grow-1" id="serialPortSelect">
+                                <!-- 串口选项将通过 JavaScript 动态填充 -->
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <button class="btn btn-primary" id="refreshSerialPortsBtn" onclick="refreshSerialPorts()">刷新</button>
+                        </div>
+                        <div class="col-md-1">
+                            <input type="number" class="form-control" id="baudrate" value="9600" placeholder="波特率">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center">
+                            <button id="connectBtn" class="btn btn-primary">连接</button>
+                            <button id="disconnectBtn" class="btn btn-danger" disabled>断开连接</button>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center">
+                            <label for="logSwitch" class="me-2">记录日志</label>
+                            <input type="checkbox" id="logSwitch" onclick="toggleLogRecording()">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center">
+                            <button class="btn btn-primary ms-2" id="downloadLogBtn" onclick="downloadLog()" disabled>下载日志</button>
+                        </div>
+                    </div>
+                    
+                    <div id="terminal" style="background-color: black; padding: 10px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<!-- 静态加载 xterm 相关的 JavaScript 文件 -->
+<link rel="stylesheet" href="{% static 'bootstrap/bootstrap.min.css' %}">
+<link rel="stylesheet" href="{% static 'xterm/xterm.css' %}">
+<script src="{% static 'xterm/xterm.min.js' %}"></script>
+<script src="{% static 'xterm/xterm-addon-web-links.min.js' %}"></script>
+<script src="{% static 'xterm/xterm-addon-fit.min.js' %}"></script>
+
+<script>
+    // 创建socket 全局变量
+    let socket = null;
+    // 创建terminal全局变量
+    let terminal = new window.Terminal({
+        cursorBlink: true,
+        theme: {
+            background: '#000000', // 背景黑色
+            foreground: '#ffffff', // 前景白色
+            cursor: '#aeafad',     // 自定义光标颜色
+            selection: '#3a3d41'   // 自定义选中区域颜色
+        },
+        fontSize: 16, // 自定义字体大小
+    });
+    const fitAddon = new window.FitAddon.FitAddon();
+    //日志记录开关
+    let isLoggingEnabled = false;
+    let logFile = null;
+
+    terminal.loadAddon(fitAddon);
+    terminal.open(document.getElementById('terminal'));
+    fitAddon.fit();
+    terminal.write('等待连接...');
+
+    function toggleLogRecording() {
+        isLoggingEnabled = document.getElementById('logSwitch').checked;
+        if (isLoggingEnabled) {
+            // 创建或打开日志文件
+            logFile = new Blob([], { type: 'text/plain' });
+        } else {
+            // 关闭日志文件
+            logFile = null;
+        }
+        // 根据日志记录状态启用或禁用下载按钮
+        document.getElementById('downloadLogBtn').disabled = !isLoggingEnabled;
+    }
+
+    // 创建连接socket函数
+    async function connectDevice() {
+        // 清理现有连接
+        if (socket) {
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.close();
+            socket = null;
+        }
+        terminal.dispose();
+        terminal = new window.Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000000', // 背景黑色
+                foreground: '#ffffff', // 前景白色
+                cursor: '#aeafad',     // 自定义光标颜色
+                selection: '#3a3d41'   // 自定义选中区域颜色
+            },
+            fontSize: 16, // 自定义字体大小
+        });
+        terminal.loadAddon(fitAddon);
+        terminal.open(document.getElementById('terminal'));
+        fitAddon.fit();
+        terminal.write('等待连接...');
+
+        // 创建新的socket连接
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = `${wsProtocol}${window.location.host}/ws/serial_terminal/`;
+        socket = new WebSocket(wsUrl);
+
+        // 当socket建立连接的发送设备登陆认证信息进行认证，用于后台串口连接
+        socket.onopen = function () {
+            console.log('WebSocket connection established');
+            const terminalElement = document.getElementById('terminal');
+            terminalElement.style.opacity = '1';
+            const authData = {
+                type: 'auth',
+                port: document.getElementById('serialPortSelect').value,
+                baudrate: document.getElementById('baudrate').value
+            };
+            socket.send(JSON.stringify(authData));
+        };
+
+        socket.onerror = function (error) {
+            console.error('WebSocket error:', error);
+            terminal.write('\r\nWebSocket connection error\r\n');
+        };
+
+        socket.onclose = function () {
+            disconnectDevice();
+        };
+
+        // WebSocket message handling
+        socket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            console.log('$$$$$',data)
+            if (data.type === 'output') {
+                terminal.write(data.data);
+            } else if (data.type === 'error') {
+                if (socket) {
+                    socket.onopen = null;
+                    socket.onmessage = null;
+                    socket.onclose = null;
+                    socket.close();
+                    socket = null;
+                }
+                terminal.reset(); // 清除终端内容
+                terminal.write('连接失败\r\nError: ' + data.message + '\r\n');
+            } else if (data.type === 'prompt_password') {
+                // 如果收到需要输入密码的消息，显示密码输入框
+                const passwordInput = document.createElement('input');
+                passwordInput.type = 'password';
+                passwordInput.placeholder = '请输入密码';
+                passwordInput.id = 'serialPassword';
+                const sendButton = document.createElement('button');
+                sendButton.textContent = '发送密码';
+                sendButton.onclick = function() {
+                    const password = document.getElementById('serialPassword').value;
+                    socket.send(JSON.stringify({
+                        type: 'serial_password',
+                        password: password
+                    }));
+                };
+                const container = document.createElement('div');
+                container.appendChild(passwordInput);
+                container.appendChild(sendButton);
+                document.body.appendChild(container);
+            } else if (data.type === 'status') {
+                if (data.message === '连接成功') {
+                    terminal.reset(); // 清除终端内容
+                    // 显示连接成功信息
+                    terminal.write(data.message + '\r\n');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                }else{
+                    terminal.write(data.message + '\r\n');
+                }
+            }
+        };
+        terminal.onData(data => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'input',
+                    data: data
+                }));
+            }
+        });
+    }
+
+    // 创建关闭socket函数
+    async function disconnectDevice() {
+        if (socket) {
+            socket.send(JSON.stringify({
+                    type: 'Serial_disconnect',
+                    data: '关闭连接'
+                }));
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.close();
+            socket = null;
+        }
+        terminal.reset();
+        terminal.write('已断开连接');
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+        // 启用下载按钮
+        document.getElementById('downloadLogBtn').disabled = false;
+    }
+    // 刷新串口列表的函数
+    async function refreshSerialPorts() {
+        try {
+            // 这里假设通过 AJAX 请求获取可用串口列表
+            const response = await fetch('/api/get_serial_ports/');
+            if (!response.ok) {
+                throw new Error('获取串口列表失败');
+            }
+            const serialPorts = await response.json();
+            // 清空现有的串口选项
+            const serialPortSelect = document.getElementById('serialPortSelect');
+            serialPortSelect.innerHTML = '';
+            // 添加新的串口选项
+            serialPorts.forEach(port => {
+                const option = document.createElement('option');
+                option.value = port;
+                option.textContent = port;
+                serialPortSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('获取串口列表出错:', error);
+        }
+    }
+
+    // 绑定连接和断开连接按钮事件
+    document.getElementById('connectBtn').addEventListener('click', connectDevice);
+    document.getElementById('disconnectBtn').addEventListener('click', disconnectDevice);
+    // 页面加载时自动刷新一次串口列表
+    window.addEventListener('load', () => {
+        refreshSerialPorts();
+    });
+</script>
+{% endblock %}

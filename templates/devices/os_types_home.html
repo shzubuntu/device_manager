@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>OS类型管理</h1>
+    <div class="mb-3">
+        <button class="btn btn-success" onclick="showOSTypeModal('add')">
+            <i class="fas fa-plus"></i> 新增OS类型
+        </button>
+        <button class="btn btn-danger" id="deleteSelected">
+            <i class="fas fa-trash"></i> 批量删除
+        </button>
+        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importOSTypeModal">
+            <i class="fas fa-file-import"></i> 批量导入
+        </button>
+        <button class="btn btn-warning" onclick="exportOSTypes()">
+            <i class="fas fa-file-export"></i> 批量导出
+        </button>
+    </div>
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="nameFilter" placeholder="OS类型名称" onkeyup="filterOSTypes()">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="commentFilter" placeholder="OS类型描述" onkeyup="filterOSTypes()">
+        </div>
+    </div>
+    <table class="table mt-3" id="os_type_table">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>名称</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="os_type_list">
+            <!-- OS类型数据将通过 JavaScript 动态填充 -->
+        </tbody>
+    </table>
+</div>
+
+<!-- 添加和编辑OS类型模态框 -->
+<div class="modal fade" id="OSTypeModal" tabindex="-1" role="dialog" aria-labelledby="addOSTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="OSTypeModalLabel">OS类型信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="OSTypeForm">
+                    <div class="form-group">
+                        <label for="name">OS类型名称</label>
+                        <input type="text" class="form-control" id="name" title="请输入OS类型名称" placeholder="OS类型名称" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="comment">OS类型描述</label>
+                        <input type="text" class="form-control" id="comment" title="请输入OS类型描述" placeholder="OS类型描述">
+                    </div>
+                  
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="importOSTypeModal" tabindex="-1" role="dialog" aria-labelledby="importOSTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importOSTypeModalLabel">批量导入OS类型</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="importOSTypeForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="importFile">选择文件</label>
+                        <input type="file" class="form-control" id="importFile" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">导入</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                </form>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="downloadTemplate()"> <i class="fas fa-file-download"></i> 下载模板
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // 清空表单函数
+    function clearForm() {
+        $('#OSTypeForm')[0].reset();
+    }
+
+    // 查询加载OS类型列表
+    function loadOSTypes() {
+        $.get('/api/os_types/', function(data) {
+            $('#os_type_list').empty();  // 清空现有OS类型列表
+            data.forEach(function(os_type) {
+                $('#os_type_list').append(`
+                    <tr>
+                        <td><input type="checkbox" class="os_type_checkbox" value="${os_type.id}"></td>
+                        <td>${os_type.name}</td>
+                        <td>${os_type.comment}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm editOSType" data-id="${os_type.id}">编辑</button>
+                            <button class="btn btn-danger btn-sm deleteOSType" data-id="${os_type.id}">删除</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        });
+    }
+    
+    // 增加OS类型功能相关函数
+    // 显示添加OS类型模态框
+    function showOSTypeModal(mode ) {
+        if (mode === 'add') {
+            $('#OSTypeModalLabel').text('新增OS类型');
+            $('#OSTypeModal').modal('show');  // 显示添加OS类型模态框
+        } else if (mode === 'edit') {
+            $('#OSTypeModalLabel').text('编辑OS类型');
+            $('#OSTypeModal').modal('show');  // 显示编辑OS类型模态框
+        }
+    }
+    // 当模态框关闭时，清空模态框中的输入框
+    $('#OSTypeModal').on('hidden.bs.modal', function () {
+        // 清空模态框中的输入框
+        $('#OSTypeForm')[0].reset();
+    });
+    // 添加OS类型
+    $('#OSTypeForm').on('submit', function(e) {
+        e.preventDefault();
+        const newOSType = {
+            name: $('#name').val(),
+            comment: $('#comment').val(),
+        };
+        const csrftoken = getCookie('csrftoken');
+        console.log('newOSType',newOSType);
+        $.ajax({
+            url: `/api/os_types/`,
+            type: 'POST',
+            data: newOSType,
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function() {
+                $('#OSTypeModal').modal('hide');  // 隐藏添加OS类型模态框
+                loadOSTypes();
+            }
+        });
+        
+    });
+    // 删除单个OS类型
+    $(document).on('click', '.deleteOSType', function() {
+        const osTypeId = $(this).data('id');
+        const csrftoken = getCookie('csrftoken');
+        $.ajax({
+            url: `/api/os_types/${osTypeId}/`,
+            type: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function() {
+                loadOSTypes();
+            }
+        });
+    });
+    // 批量删除
+    $('#deleteSelected').on('click', function() {
+        const selectedIds = $('.os_type_checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        const csrftoken = getCookie('csrftoken');
+        console.log('selectedIds',selectedIds);
+        if (selectedIds.length > 0) {
+            $.ajax({
+                url: '/api/os_types/',
+                type: 'DELETE',
+                data: JSON.stringify({ ids: selectedIds }),
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                contentType: 'application/json',
+                success: function() {
+                    loadOSTypes();
+                }
+            });
+        } else {
+            alert('请先选择要删除的OS类型');
+        }
+    });
+    
+    // 修改编辑OS类型
+    $(document).on('click', '.editOSType', function() {
+        const osTypeId = $(this).data('id');
+        $.get(`/api/os_types/${osTypeId}/`, function(data) {
+            // 填充模态框中的数据
+            showOSTypeModal('edit');
+            $('#name').val(data.name);
+            $('#comment').val(data.comment);
+            
+           // $('#BookModal').modal('show'); // 显示模态框
+
+            // 更新OS类型
+            $('#OSTypeForm').off('submit').on('submit', function(e) {
+                e.preventDefault();
+                const updatedOSType = {
+                    name: $('#name').val(),
+                    comment: $('#comment').val(),
+                };
+                const csrftoken = getCookie('csrftoken');
+                $.ajax({
+                    url: `/api/os_types/${osTypeId}/`,
+                    type: 'PUT',
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    },
+                    contentType: 'application/json',
+                    data: JSON.stringify(updatedOSType),
+                    success: function() {
+                        $('#OSTypeModal').modal('hide');
+                        loadOSTypes();
+                    }
+                });
+            });
+        });
+    });
+    // 批量导入
+    $(document).on('submit', '#importOSTypeForm', function(e) {
+        e.preventDefault();  // 防止默认提交
+
+        const fileInput = $('#importFile')[0];
+        if (fileInput.files.length === 0) {
+            alert('请选择要导入的文件');
+            return;
+        }
+
+        const formData = new FormData();  // 获取表单数据
+        formData.append('file', fileInput.files[0]);  // 添加文件到 FormData
+        const csrftoken = getCookie('csrftoken');
+
+        $.ajax({
+            url: '/api/os_types/import/',  // 假设您将创建这个 API
+            type: 'POST',
+            data: formData,
+            processData: false,  // 不处理数据
+            contentType: false,  // 不设置内容类型
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                alert('OS类型导入成功！');
+                loadOSTypes();  // 刷新OS类型列表
+                $('#importOSTypeModal').modal('hide');  // 关闭模态框
+                $('#importOSTypeForm')[0].reset();  // 重置表单
+            },
+            error: function(error) {
+                console.error('导入错误:', error);
+                let errorMessage = '导入OS类型失败';
+                if (error.responseJSON && error.responseJSON.error) {
+                    errorMessage += '：' + error.responseJSON.error;
+                } else if (error.responseText) {
+                    errorMessage += '：' + error.responseText;
+                }
+                alert(errorMessage);
+            }
+        });
+    });
+    // 导出OS类型
+    function exportOSTypes() {
+        const selectedIds = [];
+        $('input[type="checkbox"]:checked').each(function() {
+            if (this.value) {
+                selectedIds.push(this.value);
+            }
+        });
+
+        if (selectedIds.length === 0) {
+            alert('请选择要导出的OS类型');
+            return;
+        }
+
+        const json_string = JSON.stringify(selectedIds);
+        const csrftoken = getCookie('csrftoken');
+        console.log('导出OS类型json_string',json_string);
+
+        $.ajax({
+            url: '/api/os_types/export/',  // 假设您将创建这个 API
+            type: 'POST',
+            data: { ids: json_string },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function(response) {
+                // 直接下载文件
+                const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = 'os_types.csv';
+                link.click();
+            },
+            error: function(error) {
+                alert('导出OS类型失败：' + error.responseJSON.message);
+            }
+        });
+    }
+    // 关键字过滤OS类型
+    function filterOSTypes() {
+        const nameFilter = $('#nameFilter').val().toLowerCase();
+        const commentFilter = $('#commentFilter').val().toLowerCase();
+
+        console.log("Filtering os_types with:", nameFilter, commentFilter);  // 调试输出
+
+        $('#os_type_table tbody tr').filter(function() {
+            const nameMatch = $(this).find('td:nth-child(2)').text().toLowerCase().indexOf(nameFilter) > -1;
+            const commentMatch = $(this).find('td:nth-child(3)').text().toLowerCase().indexOf(commentFilter) > -1;
+
+            // 只显示匹配的行
+            $(this).toggle(nameMatch && commentMatch);
+        });
+    }
+
+   
+    // 选择所有OS类型
+    //$('#selectAll').on('change', function() {
+    //    $('.os_type_checkbox').prop('checked', this.checked);
+    //});
+    // 页面加载时执行
+    $(document).ready(function() {
+        //加载OS类型列表
+        loadOSTypes();
+
+         $('#selectAll').click(function() {
+            //$('input[type="checkbox"]').prop('checked', this.checked);
+            const isChecked = this.checked;  // 获取全选复选框的状态
+            // 只选择当前可见的设备行
+            $('#os_type_table tr:visible input[type="checkbox"]').prop('checked', isChecked);
+        });
+
+        // 监听单个复选框的变化事件
+        $('#os_type_list').on('change', 'input[type="checkbox"]', function() {
+            const allCheckboxes = $('#os_type_list input[type="checkbox"]');
+            const checkedCheckboxes = allCheckboxes.filter(':checked');
+            // 如果所有单个复选框都被选中，则全选复选框也选中；否则取消选中
+            $('#selectAll').prop('checked', allCheckboxes.length === checkedCheckboxes.length);
+        });
+    });
+
+    function downloadTemplate() {
+        window.location.href = '/static/csv/os_types_template.csv';  // 假设模板文件的路径
+    }
+    </script>
+{% endblock %} 
+
+

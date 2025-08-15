@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">缓存管理</h2>
+    
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">缓存列表</h5>
+            <button class="btn btn-primary" onclick="loadCacheList()">
+                <i class="fas fa-sync"></i> 刷新
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>缓存键</th>
+                            <th>类型</th>
+                            <th>过期时间</th>
+                            <th>剩余时间</th>
+                            <th>大小</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cacheList">
+                        <!-- 缓存列表将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 缓存值查看模态框 -->
+    <div class="modal fade" id="cacheValueModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">缓存值详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">缓存键</label>
+                        <input type="text" class="form-control" id="modalKey" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">缓存值</label>
+                        <pre class="form-control" id="modalValue" style="max-height: 400px; overflow-y: auto;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 页面加载完成后获取缓存列表
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCacheList();
+    });
+
+    // 刷新缓存列表
+    function loadCacheList() {
+        $.ajax({
+            url: '/devices/caches/',
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'success') {
+                    const tbody = $('#cacheList');
+                    tbody.empty();
+                    
+                    if (!response.data || response.data.length === 0) {
+                        tbody.append('<tr><td colspan="6" class="text-center">暂无缓存数据</td></tr>');
+                        return;
+                    }
+                    
+                    response.data.forEach(function(item) {
+                        const row = $('<tr>');
+                        row.append($('<td>').text(item.key));
+                        row.append($('<td>').text(item.type));
+                        row.append($('<td>').text(item.expire_at));
+                        row.append($('<td>').text(item.ttl));
+                        row.append($('<td>').text(formatSize(item.size)));
+                        
+                        const btnGroup = $('<div>').addClass('btn-group');
+                        
+                        // 查看按钮
+                        const viewBtn = $('<button>')
+                            .addClass('btn btn-info btn-sm')
+                            .html('<i class="fas fa-eye"></i>')
+                            .click(function() {
+                                viewCacheValue(item.key);
+                            });
+                        
+                        // 删除按钮
+                        const deleteBtn = $('<button>')
+                            .addClass('btn btn-danger btn-sm')
+                            .html('<i class="fas fa-trash"></i>')
+                            .click(function() {
+                                deleteCacheKey(item.key);
+                            });
+                        
+                        btnGroup.append(viewBtn, deleteBtn);
+                        row.append($('<td>').append(btnGroup));
+                        tbody.append(row);
+                    });
+                } else {
+                    alert('获取缓存列表失败：' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('获取缓存列表失败：' + (xhr.responseJSON?.message || '未知错误'));
+            }
+        });
+    }
+
+    // 查看缓存值
+    function viewCacheValue(key) {
+        $.ajax({
+            url: '/devices/caches/',
+            method: 'PUT',
+            data: { key: key },
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#modalKey').val(response.data.key);
+                    $('#modalValue').text(response.data.value);
+                    new bootstrap.Modal(document.getElementById('cacheValueModal')).show();
+                } else {
+                    alert('获取缓存值失败：' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('获取缓存值失败：' + (xhr.responseJSON?.message || '未知错误'));
+            }
+        });
+    }
+
+    // 删除缓存键
+    function deleteCacheKey(key) {
+        if (confirm(`确定要删除缓存键 "${key}" 吗？`)) {
+            $.ajax({
+                url: '/devices/caches/',
+                method: 'DELETE',
+                data: { key: key },
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        alert(response.message);
+                        loadCacheList(); // 刷新列表
+                    } else {
+                        alert('删除缓存失败：' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('删除缓存失败：' + (xhr.responseJSON?.message || '未知错误'));
+                }
+            });
+        }
+    }
+
+    // 格式化文件大小
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+</script>
+{% endblock %} 

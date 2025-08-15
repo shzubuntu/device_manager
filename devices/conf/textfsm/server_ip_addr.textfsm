@@ -1,0 +1,16 @@
+Value INTERFACE (\S+)
+Value IP_ADDRESS (\d+\.\d+\.\d+\.\d+)
+Value IPV6_ADDRESS (([\w]*:){1,7}[\w]*)
+Value PREFIX (\d+)
+Value IPV6_PREFIX (\d+)
+Value MAC_ADDRESS ([0-9a-fA-F:]+)
+Value STATE (UP|DOWN|UNKNOWN)
+Value MTU (\d+)
+
+Start
+  ^\d+: [\w\d]+ -> Continue.Record
+  ^\d+: ${INTERFACE}:.*mtu ${MTU}.*state ${STATE}
+  ^\s+link/ether ${MAC_ADDRESS}
+  ^\s+inet ${IP_ADDRESS}/${PREFIX} 
+  ^\s+inet6 ${IPV6_ADDRESS}/${IPV6_PREFIX}
+  ^\s*$$ -> Start

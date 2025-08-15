@@ -1,0 +1,11 @@
+Value Fan_id (FAN\d+)
+Value FanNum (\S+)
+Value Present (\w+)
+Value Register (\w+)
+Value Status (\S+)
+Value Speed (\S+)
+Value Mode (\S+)
+Value Direction (\S+)
+
+Start
+  ^\s*\S*${Fan_id}\s+\[\s*${FanNum}\s*\]\s+${Present}\s+${Register}\s+${Status}\s+${Speed}\s+${Mode}\s+${Direction} -> Record

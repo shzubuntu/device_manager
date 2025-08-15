@@ -1,0 +1,16 @@
+Value Filldown HOSTNAME (\S+)
+Value Required INTERFACE (\S+)
+Value VLANID (\d+)
+Value VOICE_VLANID (\d+)
+Value POE_STATUS (\S+)
+Value DESC (\S+)
+Value MAC (\S+)
+
+Start
+  ^hostname\s*${HOSTNAME}
+  ^interface\s*${INTERFACE}
+  ^\s+description\s*${DESC}
+  ^\s+switchport access vlan\s+${VLANID}
+  ^\s+poe\s*${POE_STATUS}
+  ^\s+switchport port-security mac-address sticky\s+${MAC}
+  ^! -> Continue.Record

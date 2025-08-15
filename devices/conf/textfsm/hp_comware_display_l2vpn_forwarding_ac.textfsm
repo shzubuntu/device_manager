@@ -1,0 +1,6 @@
+Value AC_NAME (\S+ \S+)
+Value VSI_NAME (\S+)
+Value AC_LINK_ID (\d+)
+
+Start
+  ^${AC_NAME}\s+${VSI_NAME}\s+${AC_LINK_ID} -> Record

@@ -1,0 +1,20 @@
+Value Required INTF (\S+)
+Value Required TRANS_TYPE (\S+)
+Value CONN_TYPE (\S+)
+Value WAVE_LENGTH (.*)
+#Value List TRANS_DISTANCE (.*)
+Value TRANS_DISTANCE (.*)
+Value VENDOR_NAME (.*)
+Value TRANS_NAME (.*)
+
+
+Start
+  ^\S+\s+transceiver\s+information.* -> Continue.Record
+  ^${INTF}\s+transceiver\s+information
+  ^\s+Transceiver\s+Type\s+:\s+${TRANS_TYPE}
+  ^\s+Connector\s+Type\s+:\s+${CONN_TYPE}
+  ^\s+Wavelength\(nm\)\s+:\s+${WAVE_LENGTH}
+  ^\s+Transfer\s+Distance\(m\)\s+:\s+${TRANS_DISTANCE}
+  ^\s+Vendor\s+Name\s+:\s+${VENDOR_NAME}
+  ^\s+Ordering\s+Name\s+:\s+${TRANS_NAME}
+  #^\s*$$

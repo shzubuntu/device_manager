@@ -1,0 +1,25 @@
+Value Required INTERFACE (\S+)
+Value Required TRANS_TYPE (\S+)
+Value CONN_TYPE (\S+)
+Value WAVE_LENGTH (.*)
+#Value List TRANS_DISTANCE (\d+\(\S+ \S+\))
+Value List TRANS_DISTANCE (\d+\(.*\))
+Value VENDOR_NAME (.*)
+#Value TRANS_NAME (.*)
+Value Manu_sn (\S+)
+Value Manu_date (\S+)
+
+
+Start
+  ^\s+\S+\s+transceiver\s+information.* -> Continue.Record
+  ^\s*${INTERFACE}\s+transceiver\s+information\s*:
+  ^\s+Transceiver\s+Type\s+:\s*${TRANS_TYPE}
+  ^\s+Connector\s+Type\s+:\s*${CONN_TYPE}
+  ^\s+Wavelength\s*\(nm\)\s+:\s*${WAVE_LENGTH}
+  ^\s+Transfer\s+Distance\s*\(m\)\s+:\s*${TRANS_DISTANCE} 
+  ^\s+${TRANS_DISTANCE}
+  ^\s+Vendor\s+Name\s+:\s*${VENDOR_NAME}
+  #^\s+Ordering\s+Name\s+:\s*${TRANS_NAME}
+  ^\s+Manu. Serial Number\s+:\s*${Manu_sn}
+  ^\s+Manufacturing Date\s+:\s*${Manu_date}
+  #^\s*$$

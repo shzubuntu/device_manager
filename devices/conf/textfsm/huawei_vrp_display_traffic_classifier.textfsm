@@ -1,0 +1,10 @@
+Value Class_name (\S+)
+Value Class_type (\S+)
+Value Acl_id (\S+)
+
+Start
+  ^\s+Classifier:  -> Continue.Record
+  ^\s+Classifier:\s*${Class_name}\s*$$
+  ^\s+Type:\s+${Class_type}\s*$$
+  ^\s+if-match\s+acl\s+${Acl_id}\s*$$
+  ^\s+if-match\s+vxlan\s+acl\s+${Acl_id}\s*$$

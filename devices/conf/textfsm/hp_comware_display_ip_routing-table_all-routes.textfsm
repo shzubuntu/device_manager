@@ -1,0 +1,13 @@
+Value Filldown Vrf (\S+)
+Value Filldown Destination (\d+\.\d+\.\d+\.\d+)
+Value Filldown Mask (\d+)
+Value Filldown Proto (\S+)
+Value Filldown Pre (\d+)
+Value Filldown Cost (\d+)
+Value Flag (\S+)
+Value Required NextHop (\d+\.\d+\.\d+\.\d+)
+Value Required Interface (\S+)
+
+Start
+  ^VPN instance:\s+${Vrf}
+  ^${Destination}/${Mask}\s+${Proto}\s+${Pre}\s+${Cost}\s+${NextHop}\s+${Interface}\s*$$ -> Record

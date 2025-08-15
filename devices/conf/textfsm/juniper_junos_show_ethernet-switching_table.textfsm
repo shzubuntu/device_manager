@@ -1,0 +1,8 @@
+Value VLAN (\S+)
+Value MAC_ADDRESS (([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})
+Value MAC_FLAG (\S+)
+Value AGE (\S+)
+Value LOGICAL_INTERFACE (\S+)
+
+Start
+  ^\s+${VLAN}\s+${MAC_ADDRESS}\s+${MAC_FLAG}\s+${AGE}\s+${LOGICAL_INTERFACE} -> Continue.Record

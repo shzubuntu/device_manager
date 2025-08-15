@@ -1,0 +1,9 @@
+Value Required Policy_name (\S+)
+Value Class_name (\S+)
+Value Behavior_name (\S+)
+
+Start
+  ^\s+Policy:  -> Continue.Record
+  ^\s+Policy:\s*${Policy_name}\s*$$
+  ^\s+Classifier:\s*${Class_name}\s*$$
+  ^\s+Behavior:\s*${Behavior_name}\s*$$

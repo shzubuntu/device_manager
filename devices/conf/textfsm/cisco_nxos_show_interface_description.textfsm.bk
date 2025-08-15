@@ -1,0 +1,16 @@
+Value PORT (\S+)
+Value TYPE (\S+)
+Value SPEED (\d+G?)
+Value DESCRIPTION (\S.*?)
+
+Start
+  ^\s*Interface\s+Description\s*$$ -> Begin
+
+Begin
+  ^\s*-+
+  ^\s*Port\s+Type\s+Speed\s+Description\s*$$
+  ^\s*Interface\s+Description\s*$$
+  ^\s*${PORT}\s+${TYPE}\s+${SPEED}(?:\s+${DESCRIPTION})?\s*$$ -> Record
+  ^\s*${PORT}\s+(?:\s+${DESCRIPTION})?\s*$$ -> Record
+  ^\s*$$
+  ^. -> Error

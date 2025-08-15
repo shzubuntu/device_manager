@@ -1,0 +1,23 @@
+Value SOFTWARE_IMAGE (\S+)
+Value SOFTWARE_IMAGE_VERSION (\S+)
+Value SOFTWARE_IMAGE_Release (\S+)
+Value HOSTTYPE (.+?)
+Value UPTIME_WEEKS (\d+)
+Value UPTIME_DAYS (\d+)
+Value UPTIME_HOURS (\d+)
+Value UPTIME_MINUTES (\d+)
+Value BOOT_IMAGE (\S+)
+Value BOOT_IMAGE_Version (\S+)
+Value BOOT_IMAGE_Release (\S+)
+
+Start
+  ^\s*${HOSTTYPE}\s+uptime\s+is -> Continue
+  ^.*\s+uptime\s+is.*\s+${UPTIME_WEEKS}\sweeks -> Continue
+  ^.*\s+uptime\s+is.*\s+${UPTIME_DAYS}\sday -> Continue
+  ^.*\s+uptime\s+is.*\s+${UPTIME_HOURS}\shours -> Continue
+  ^.*\s+uptime\s+is.*\s+${UPTIME_MINUTES}\sminutes
+  ^\s*Boot\s*image\s*:\s*${BOOT_IMAGE}
+  ^\s*Boot\s*image\s*version: \s*${BOOT_IMAGE_Version},\s+Release\s+${BOOT_IMAGE_Release}
+  ^\s*System\s*image\s*:\s*${SOFTWARE_IMAGE}
+  ^\s*System\s*image\s*version: \s*${SOFTWARE_IMAGE_VERSION},\s+Release\s+${SOFTWARE_IMAGE_Release}
+
