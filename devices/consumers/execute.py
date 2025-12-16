@@ -201,9 +201,13 @@ class BaseexecuteConsumer(AsyncWebsocketConsumer):
             # 同步获取命令名称
             #command_ids = [cmd for cmd in command_ids if cmd] # 删除空字符串
             if len(command_ids)>0:
+                # 获取命令信息
+                logger.debug(f"获取命令ID {command_ids} 的信息")
                 command_info = self._get_command_credentials_sync(command_ids)
+                logger.debug(f"获取命令ID {command_ids} 的信息成功{command_info}")
                 # 根据os_type筛选命令
                 commands = [command['command_text'] for command in command_info if command['os_type'] == device_info['os_type']]
+                logger.debug(f"根据os_type筛选命令成功{commands}")
             if device_info['device_type'] in ['switch', 'router', 'firewall']:
                 commands = commands + network_commands # 合并命令
                 commands = list(set(commands)) # 去重
@@ -349,6 +353,14 @@ class BaseexecuteConsumer(AsyncWebsocketConsumer):
                 password=device_info['password'],
                 timeout=15
             )
+            #对commands进行转换，如果cmd中有__，则表示是命令集，需要读取命令集文件中的所有命令
+            # for cmd in commands:
+            #     if '__' in cmd:
+            #         cmd_file = f"{cmd}.conf"
+            #         cmd_file_path = os.path.join(settings.DIR_INFO['CONF_DIR'], 'netconf',f"{cmd_file}.conf")
+            #         if os.path.exists(cmd_file_path):
+            #             with open(cmd_file_path, 'r') as f:
+            #                 commands.extend(f.readlines())
             logger.info(f"成功连接到通用SSH设备 {device_info['name']} ({device_info['ip']}),执行命令列表：{commands}")
             # 串行执行命令
             for cmd in commands:
@@ -656,6 +668,66 @@ class ConfigConsumer(BaseexecuteConsumer):
             self.send_instant_progress_update()
             if conn:
                 conn.disconnect()
+    def _handle_generic_device_sync(self, device_info, commands):
+        """处理通用SSH设备（命令串行）"""
+        ssh = paramiko.SSHClient()
+        session_log=os.path.join(self.execute_dir,f"{device_info['name']}__{device_info['ip']}.log")
+        logfile_handler = open(session_log,'w')
+        try:
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(
+                hostname=device_info['ip'],
+                port=device_info['port'],
+                username=device_info['username'],
+                password=device_info['password'],
+                timeout=15
+            )
+            logger.info(f"成功连接到通用SSH设备 {device_info['name']} ({device_info['ip']}),执行命令列表：{commands}")
+            commands_arr = []
+            for cmd_name in commands:
+                commands_arr+=commands[cmd_name]
+            commands = commands_arr
+            # 串行执行命令
+            for cmd in commands:
+                try:
+                    logger.debug(f"{device_info['name']} {device_info['ip']} 执行命令{cmd}")
+                    start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    stdin, stdout, stderr = ssh.exec_command(cmd)
+                    end_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    output = stdout.read().decode() or stderr.read().decode()
+                    #记录日志
+                    logfile_handler.write(f"Command: {cmd}\n{output}\n")
+                    logfile_handler.flush()
+                    self.send_instant_result(
+                        device_info['name'],
+                        device_info['ip'],
+                        device_info['device_type'],
+                        device_info['os_type'],
+                        cmd,
+                        output,
+                        start_time,
+                        end_time
+                    )
+                except Exception as e:
+                    with self.progress_lock:
+                        self.progress_tracker['failed_commands'] += 1
+                    self._send_error_sync(f"SSH命令 {cmd} 失败: {str(e)}")
+                finally:
+                    with self.progress_lock:
+                        self.progress_tracker['completed_commands'] += 1
+                    self.send_instant_progress_update()
+        except Exception as e:
+            with self.progress_lock:
+                self.progress_tracker['failed_devices'] += 1
+            self._send_error_sync(f"SSH连接失败: {str(e)}")
+            raise RuntimeError(f"SSH连接失败: {str(e)}")
+        finally:
+            with self.progress_lock:
+                self.progress_tracker['completed'] += 1
+            self.send_instant_progress_update()
+            logfile_handler.close()
+            if ssh:
+                ssh.close()
     def generate_report_file(self, report_id, data,execute_type):
         #生成报告
         generator = ReportGenerator()

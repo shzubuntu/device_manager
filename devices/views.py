@@ -181,6 +181,8 @@ def export_os_types(request):
 
         ids = json.loads(ids)  # 将 JSON 字符串转换为列表
         # 过滤掉 'on'
+        if 'on' in ids:
+            ids.remove('on')
         os_types = OSType.objects.filter(id__in=ids)  # 获取选中的OS类型
 
         # 创建 CSV 文件
@@ -300,7 +302,7 @@ class CommandsViewSet(viewsets.ModelViewSet):
         """
         command = self.get_object()
         serializer = self.get_serializer(command, data=request.data, partial=True)
-        logger.debug("前端接受的命令数据",serializer)
+        logger.debug(f"前端接受的命令数据: {serializer}")
         if serializer.is_valid():
             serializer.save()
             # 清除缓存
@@ -376,6 +378,8 @@ def export_commands(request):
 
         ids = json.loads(ids)  # 将 JSON 字符串转换为列表
         # 过滤掉 'on'
+        if 'on' in ids:
+            ids.remove('on')
         commands = Command.objects.filter(id__in=ids)  # 获取选中的命令 
         
         # 创建 CSV 文件
@@ -527,7 +531,7 @@ class TextFSMCsvView(APIView):
         if 'huawei' in os_type.lower():
             os_type = 'huawei_vrp'
         file_path = os.path.join(self.textfsmcsv_dir, f"{os_type}_{command_text}.csv")
-        logger.debug("删除file_path",file_path)
+        logger.debug(f"删除file_path: {file_path}")
         if os.path.exists(file_path):
             os.remove(file_path)
             cache.delete('commands')
@@ -1128,6 +1132,7 @@ class SftpFileUpload(APIView):
                 ssh.connect(username=device.username,password=device.password)
                 sftp = paramiko.SFTPClient.from_transport(ssh)
                 remote_path = ''
+                logger.debug(f"交换机设备的远程路径: {remote_path}")  # 添加调试输出
             else:
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -1138,9 +1143,11 @@ class SftpFileUpload(APIView):
                     password=device.password
                 ) 
                 sftp = ssh.open_sftp()
+                logger.debug(f"服务器设备的远程路径: {remote_path}")  # 添加调试输出
             
             # 上传文件
             remote_file_path = os.path.join(remote_path, file.name)
+            logger.debug(f"开始上传文件{file.name}到远程路径: {remote_file_path}")  # 添加调试输出
             sftp.putfo(file.file,remote_file_path)
             # 清理资源
             sftp.close()
@@ -1576,7 +1583,7 @@ class CachesView(APIView):
                 }, status=400)
             
             # 获取缓存值
-            redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+            redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB, password=settings.REDIS_PASSWORD)
             value = redis_client.get(key)
             
             if value is None:
@@ -1666,7 +1673,7 @@ class ConfigsView(APIView):
                         'commands_name': commands_name,
                         'commands_text': configs_text
                     })
-        logger.debug("configs_list",configs_list)
+        logger.debug(f"configs_list: {configs_list}")
         return Response(configs_list)
 
 
@@ -1837,7 +1844,7 @@ def devices_config_report(request, report_id):
     """
     logger.debug(f"调用api获取巡检报告: {report_id}")
     filepath = os.path.join(settings.DIR_INFO['REPORT_DIR'],'config', f"{report_id}/index.html")
-    logger.debug("查看报告",filepath)
+    logger.debug(f"查看报告: {filepath}")
     if os.path.exists(filepath): 
         return FileResponse(open(filepath, 'rb'), filename=f"report_{report_id}.html")
     else:

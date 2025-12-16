@@ -123,7 +123,7 @@
 
         // 创建新的socket连接
         const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const wsUrl = `${wsProtocol}${window.location.host}/ws/serial_terminal/`;
+        const wsUrl = `${wsProtocol}${window.location.host}:8001/ws/serial_terminal/`;
         socket = new WebSocket(wsUrl);
 
         // 当socket建立连接的发送设备登陆认证信息进行认证，用于后台串口连接

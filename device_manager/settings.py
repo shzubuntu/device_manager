@@ -36,7 +36,7 @@ USE_X_FORWARDED_HOST = True
 #SESSION_COOKIE_SECURE = True
 #CSRF_COOKIE_SECURE = True
 
-REDIS_HOST = os.environ.get('REDIS_HOST', 'redis-service')
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 REDIS_DB = int(os.environ.get('REDIS_DB', 0))
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')  # 如果需要密码，请取消注释并设置环境变量
@@ -54,8 +54,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken', #restful api认证框架
     'channels', #websocket框架
     'devices.apps.DevicesConfig', #设备管理APP
-    #'authentication', #认证管理APP  
-    'authentication.apps.AuthenticationConfig',  # Updated line
+    'authentication.apps.AuthenticationConfig', #认证管理APP
 
 ]
 
@@ -165,7 +164,6 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 #STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 STATICFILES_DIRS = [
     BASE_DIR / "static/", 
-    # BASE_DIR / "books/static/", # 已移除书籍管理APP静态文件路径
     BASE_DIR / 'authentication/static', #认证管理APP静态文件  
 ]
 #REPORT_ROOT = BASE_DIR / 'results/'# 报告根目录

@@ -37,7 +37,7 @@
 
     function connectWebSocket() {
         const csrftoken = getCookie('csrftoken');
-        socket = new WebSocket(`ws://${location.host}/ws/inspection/?token=${csrftoken}`);
+        socket = new WebSocket(`ws://${location.host}:8001/ws/inspection/?token=${csrftoken}`);
 
         socket.onopen = () => {
             console.log("WebSocket 连接已建立");

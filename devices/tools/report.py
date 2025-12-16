@@ -93,6 +93,8 @@ class ReportGenerator:
         """
         try:
             self.report_dir = os.path.join(settings.DIR_INFO['REPORT_DIR'],execute_type)
+            if not os.path.exists(self.report_dir):
+                os.makedirs(self.report_dir)
             # 上下文构建 
             context = self._build_report_context(report_id, data)
             # 模板渲染 

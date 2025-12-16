@@ -80,7 +80,7 @@
     fitAddon.fit();
 
     // 建立WebSocket连接
-    currentWs = new WebSocket(`ws://${window.location.host}/ws/terminal_simple/${deviceId}/`);
+    currentWs = new WebSocket(`ws://${window.location.host}:8001/ws/terminal_simple/${deviceId}/`);
 
     currentWs.onopen = () => {
       term.reset();
