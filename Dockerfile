@@ -3,25 +3,25 @@
 FROM python:3.10-slim-bookworm AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+    PIP_INDEX_URL=https://pypi.org/simple/
 WORKDIR /wheels
 
-# 替换为国内镜像源以提高 apt 下载速度（先清理旧的 sources.list.d）
+# 使用官方Debian源，适合GitHub Actions环境
 RUN set -eux; \
     rm -rf /etc/apt/sources.list.d/*; \
     cat > /etc/apt/sources.list <<'EOF'
-deb http://mirrors.aliyun.com/debian/ bookworm main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ bookworm main contrib non-free
-deb http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free
-deb-src http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free
-deb http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free
+deb http://deb.debian.org/debian/ bookworm main contrib non-free
+deb-src http://deb.debian.org/debian/ bookworm main contrib non-free
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free
+deb-src http://deb.debian.org/debian-security bookworm-security main contrib non-free
+deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free
+deb-src http://deb.debian.org/debian/ bookworm-updates main contrib non-free
 EOF
 
-# 为 pip 配置国内镜像源，加快依赖下载（同时把 trusted-host 写入）
+# 配置 pip 源为官方源，适合 GitHub Actions 环境
 RUN set -eux; \
     mkdir -p /etc; \
-    printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\ntrusted-host = mirrors.aliyun.com\n' > /etc/pip.conf
+    printf '[global]\nindex-url = https://pypi.org/simple/\ntrusted-host = pypi.org\n' > /etc/pip.conf
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -42,25 +42,25 @@ RUN pip wheel --no-cache-dir -r requirements.txt -w /wheels
 FROM python:3.10-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+    PIP_INDEX_URL=https://pypi.org/simple/
 WORKDIR /app
 
-# 替换为国内镜像源（先清理旧的 sources.list.d）
+# 使用官方Debian源，适合GitHub Actions环境
 RUN set -eux; \
     rm -rf /etc/apt/sources.list.d/*; \
     cat > /etc/apt/sources.list <<'EOF'
-deb http://mirrors.aliyun.com/debian/ bookworm main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ bookworm main contrib non-free
-deb http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free
-deb-src http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free
-deb http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free
+deb http://deb.debian.org/debian/ bookworm main contrib non-free
+deb-src http://deb.debian.org/debian/ bookworm main contrib non-free
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free
+deb-src http://deb.debian.org/debian-security bookworm-security main contrib non-free
+deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free
+deb-src http://deb.debian.org/debian/ bookworm-updates main contrib non-free
 EOF
 
-# 同样为运行时设置 pip 源（以便 pip --upgrade pip 等命令也走镜像）
+# 同样为运行时设置 pip 源（以便 pip --upgrade pip 等命令也走官方源）
 RUN set -eux; \
     mkdir -p /etc; \
-    printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\ntrusted-host = mirrors.aliyun.com\n' > /etc/pip.conf
+    printf '[global]\nindex-url = https://pypi.org/simple/\ntrusted-host = pypi.org\n' > /etc/pip.conf
 
 # 仅安装运行时必要的系统包，避免编译工具留在最终镜像
 RUN apt-get update && \
