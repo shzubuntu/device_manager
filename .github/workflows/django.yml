@@ -1,8 +1,8 @@
-name django.deploy
+name: django.deploy
 on:
-push:
-  branches:
-    - main
+  push:
+    branches:
+      - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,13 +12,11 @@ jobs:
         with:
           fetch-depth: 0
           
-      - name: Set up docker
-        uses: actions/setup-docker@v1
-        with:
-          docker-version: 20.10.12
-      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
       - name: run deploy script
         run: |
           chmod +x ./build.sh
-        ./build.sh
+          ./build.sh
               
